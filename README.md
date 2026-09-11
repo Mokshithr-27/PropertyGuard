@@ -124,4 +124,4 @@ PropertyGuard follows a **layered and modular architecture**.
 
 
 SOFTWARE DESIGN
-FIGMA LINK: - https://www.figma.com/design/M1B8JrCvubxdWri4eA3Sot/Mokshith-Reddy-s-team-library?node-id=3314-2&t=6DxSbyCToAG4ZJPx-1
+FIGMA AND DRAW.IO SCREEN SHORTS UPLOADED IN GIT REPO.
