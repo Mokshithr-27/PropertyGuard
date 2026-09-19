@@ -712,11 +712,15 @@ def test_evaluate_rule_dependency_failure_requires_review(
         fake_create_result,
     )
 
+    created_findings = []
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+
     monkeypatch.setattr(
         "app.services.compliance_service.create_finding",
-        lambda db, finding: pytest.fail(
-            "Finding should not be created directly from dependency failure"
-        ),
+        fake_create_finding,
     )
 
     result = service.evaluate_rule(
@@ -728,6 +732,9 @@ def test_evaluate_rule_dependency_failure_requires_review(
 
     assert result.outcome == EvaluationOutcome.NEEDS_REVIEW.value
     assert result.dependency_affected is True
+    assert len(created_findings) == 1
+    assert created_findings[0].status == "OPEN"
+    assert created_findings[0].compliance_result_id == result.id
 
 
 def test_evaluate_rule_dependency_not_evaluated_requires_review(
@@ -784,11 +791,17 @@ def test_evaluate_rule_dependency_not_evaluated_requires_review(
         fake_create_result,
     )
 
+    created_findings = []
+
+
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+
     monkeypatch.setattr(
         "app.services.compliance_service.create_finding",
-        lambda db, finding: pytest.fail(
-            "Finding should not be created for missing dependency result"
-        ),
+        fake_create_finding,
     )
 
     result = service.evaluate_rule(
@@ -945,11 +958,14 @@ def test_evaluate_rule_dependency_needs_review_requires_review(
         fake_create_result,
     )
 
+    created_findings = []
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
     monkeypatch.setattr(
         "app.services.compliance_service.create_finding",
-        lambda db, finding: pytest.fail(
-            "Finding should not be created from dependency NEEDS_REVIEW"
-        ),
+        fake_create_finding,
     )
 
     result = service.evaluate_rule(
@@ -1021,11 +1037,16 @@ def test_evaluate_rule_dependency_not_applicable_requires_review(
         fake_create_result,
     )
 
+    created_findings = []
+
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+
     monkeypatch.setattr(
         "app.services.compliance_service.create_finding",
-        lambda db, finding: pytest.fail(
-            "Finding should not be created from dependency NOT_APPLICABLE"
-        ),
+        fake_create_finding,
     )
 
     result = service.evaluate_rule(

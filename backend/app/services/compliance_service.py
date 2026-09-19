@@ -193,6 +193,8 @@ class ComplianceService:
                 str(exc),
             )
             raise
+
+
     def complete_evaluation_run(
         self,
         db: Session,
@@ -399,6 +401,19 @@ class ComplianceService:
                     compliance_result,
                 )
 
+                finding = Finding(
+                    compliance_result_id=compliance_result.id,
+                    severity=rule_version.severity,
+                    title=rule_version.rule_text[:255],
+                    description=result.explanation or "",
+                    status="OPEN",
+                )
+
+                create_finding(
+                    db=db,
+                    finding=finding,
+                )
+
                 db.commit()
                 db.refresh(compliance_result)
 
@@ -429,6 +444,19 @@ class ComplianceService:
                 create_compliance_result(
                     db,
                     compliance_result,
+                )
+
+                finding = Finding(
+                    compliance_result_id=compliance_result.id,
+                    severity=rule_version.severity,
+                    title=rule_version.rule_text[:255],
+                    description=result.explanation or "",
+                    status="OPEN",
+                )
+
+                create_finding(
+                    db=db,
+                    finding=finding,
                 )
 
                 db.commit()
@@ -495,3 +523,5 @@ class ComplianceService:
         db.refresh(compliance_result)
 
         return compliance_result
+
+    
