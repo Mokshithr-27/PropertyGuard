@@ -319,6 +319,69 @@ def get_evaluation_runs_api(
 
 
 # ============================================================
+# GET PROJECT EVALUATION HISTORY
+# ============================================================
+
+@router.get(
+    "/{project_id}/evaluations/history",
+    response_model=list[EvaluationRunResultsResponse],
+    status_code=status.HTTP_200_OK,
+)
+def get_project_evaluation_history_api(
+    project_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+    }
+
+    if not user_roles.intersection({"BUILDER", "ADMIN"}):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="BUILDER or ADMIN role required",
+        )
+
+    if "ADMIN" not in user_roles:
+        builder_profile = get_builder_profile(
+            db,
+            current_user.id,
+        )
+
+        if builder_profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Builder profile not found",
+            )
+
+        project = get_builder_project(
+            db,
+            project_id,
+            builder_profile.id,
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+
+    compliance_service = ComplianceService()
+
+    try:
+        return compliance_service.get_project_evaluation_history(
+            db,
+            project_id,
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
+
+# ============================================================
 # GET EVALUATION RUN RESULTS
 # ============================================================
 

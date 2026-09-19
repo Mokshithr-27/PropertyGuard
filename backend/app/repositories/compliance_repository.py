@@ -64,6 +64,32 @@ def update_evaluation_run(
     db.flush()
     return evaluation_run
 
+
+def get_project_evaluation_results_by_run(
+    db: Session,
+    project_id: UUID,
+) -> dict[UUID, list[ComplianceResult]]:
+    """Return compliance results grouped by evaluation run for a project."""
+
+    evaluation_runs = get_project_evaluation_runs(
+        db=db,
+        project_id=project_id,
+    )
+
+    results_by_run: dict[UUID, list[ComplianceResult]] = {}
+
+    for evaluation_run in evaluation_runs:
+        results_by_run[evaluation_run.id] = (
+            get_evaluation_run_compliance_results(
+                db=db,
+                evaluation_run_id=evaluation_run.id,
+            )
+        )
+
+    return results_by_run
+
+
+
 # ---------------------------------------------------------------------------
 # Compliance Rules
 # ---------------------------------------------------------------------------

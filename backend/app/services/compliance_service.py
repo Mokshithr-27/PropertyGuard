@@ -14,6 +14,8 @@ from app.repositories.compliance_repository import (
     get_rule_applicability,
     get_rule_dependencies,
     get_rule_version,
+    get_project_evaluation_results_by_run,
+    get_project_evaluation_runs,
 )
 from app.repositories.document_repository import (
     get_latest_version,
@@ -55,6 +57,45 @@ class ComplianceService:
 
         return evaluation_run
 
+    def get_project_evaluation_history(
+        self,
+        db: Session,
+        project_id: UUID,
+    ) -> list[dict]:
+        """Return evaluation history with compliance results grouped by run."""
+
+        project = get_project(
+            db,
+            project_id,
+        )
+
+        if project is None:
+            raise ValueError("Project not found")
+
+        evaluation_runs = get_project_evaluation_runs(
+            db=db,
+            project_id=project_id,
+        )
+
+        results_by_run = get_project_evaluation_results_by_run(
+            db=db,
+            project_id=project_id,
+        )
+
+        history = []
+
+        for evaluation_run in evaluation_runs:
+            history.append(
+                {
+                    "evaluation_run": evaluation_run,
+                    "results": results_by_run.get(
+                        evaluation_run.id,
+                        [],
+                    ),
+                }
+            )
+
+        return history
 
     def run_evaluation(
         self,

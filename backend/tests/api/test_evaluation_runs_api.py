@@ -157,3 +157,27 @@ def test_get_evaluation_run_results_openapi():
 
     assert endpoint["responses"]["200"]
     assert endpoint["responses"]["422"]
+
+
+def test_evaluation_history_endpoint_registered():
+    from app.main import app
+
+    paths = app.openapi()["paths"]
+
+    route = (
+        "/api/v1/projects/"
+        "{project_id}/evaluations/history"
+    )
+
+    assert route in paths
+    assert "get" in paths[route]
+
+    response_schema = (
+        paths[route]["get"]["responses"]["200"]
+        ["content"]["application/json"]["schema"]
+    )
+
+    assert response_schema["type"] == "array"
+    assert response_schema["items"]["$ref"] == (
+        "#/components/schemas/EvaluationRunResultsResponse"
+    )
