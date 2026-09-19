@@ -383,6 +383,34 @@ def create_finding(
     return finding
 
 
+def get_project_findings(
+    db: Session,
+    project_id: UUID,
+) -> list[Finding]:
+    return list(
+        db.scalars(
+            select(Finding)
+            .join(
+                ComplianceResult,
+                Finding.compliance_result_id == ComplianceResult.id,
+            )
+            .where(
+                ComplianceResult.project_id == project_id,
+            )
+            .order_by(Finding.created_at.desc())
+        ).all()
+    )
+
+
+def update_finding(
+    db: Session,
+    finding: Finding,
+) -> Finding:
+    db.add(finding)
+    db.flush()
+    db.refresh(finding)
+    return finding
+
 # ---------------------------------------------------------------------------
 # Discrepancies
 # ---------------------------------------------------------------------------

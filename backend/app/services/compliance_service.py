@@ -16,6 +16,9 @@ from app.repositories.compliance_repository import (
     get_rule_version,
     get_project_evaluation_results_by_run,
     get_project_evaluation_runs,
+    get_finding,
+    get_project_findings,
+    update_finding,
 )
 from app.repositories.document_repository import (
     get_latest_version,
@@ -96,6 +99,49 @@ class ComplianceService:
             )
 
         return history
+
+
+    def get_project_findings(
+        self,
+        db: Session,
+        project_id: UUID,
+    ) -> list[Finding]:
+        return get_project_findings(
+            db=db,
+            project_id=project_id,
+        )
+
+
+    def update_finding_status(
+        self,
+        db: Session,
+        finding_id: UUID,
+        status: str | None = None,
+        resolution_note: str | None = None,
+    ) -> Finding:
+        finding = get_finding(
+            db=db,
+            finding_id=finding_id,
+        )
+
+        if finding is None:
+            raise ValueError("Finding not found")
+
+        if status is not None:
+            finding.status = status
+
+            if status == "RESOLVED":
+                finding.resolved_at = datetime.now(timezone.utc)
+            else:
+                finding.resolved_at = None
+
+        if resolution_note is not None:
+            finding.resolution_note = resolution_note
+
+        return update_finding(
+            db=db,
+            finding=finding,
+        )
 
     def run_evaluation(
         self,
@@ -422,21 +468,25 @@ class ComplianceService:
         )
 
         # ---------------------------------------------------------
-        # 6. Create finding only for an actual rule failure
+        # 6. Create finding for rule failure or manual review
         # ---------------------------------------------------------
-        if result.outcome == EvaluationOutcome.FAIL:
+        if result.outcome in (
+            EvaluationOutcome.FAIL,
+            EvaluationOutcome.NEEDS_REVIEW,
+        ):
             finding = Finding(
                 compliance_result_id=compliance_result.id,
                 severity=rule_version.severity,
                 title=rule_version.rule_text[:255],
-                description=result.explanation,
+                description=result.explanation or "",
                 status="OPEN",
             )
 
             create_finding(
-                db,
-                finding,
+                db=db,
+                finding=finding,
             )
+
 
         # ---------------------------------------------------------
         # 7. Commit and return

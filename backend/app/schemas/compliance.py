@@ -3,6 +3,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from datetime import datetime
+from typing import Literal
+
 
 class ComplianceRuleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -97,6 +100,9 @@ class FindingResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class FindingUpdate(BaseModel):
+    status: Literal["OPEN", "IN_PROGRESS", "RESOLVED"] | None = None
+    resolution_note: str | None = None
 
 class DiscrepancyResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

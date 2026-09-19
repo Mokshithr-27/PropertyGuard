@@ -26,11 +26,15 @@ from app.repositories.compliance_repository import (
     get_evaluation_run,
     get_evaluation_run_compliance_results,
     get_project_evaluation_runs,
+    get_finding,
+    get_project_findings,
 )
 
 from app.schemas.compliance import (
     EvaluationRunResponse,
     EvaluationRunResultsResponse,
+    FindingResponse,
+    FindingUpdate,
 )
 
 from app.services.project_service import (
@@ -95,6 +99,141 @@ def create_project_api(
             detail=str(exc),
         )
 
+
+@router.get(
+    "/{project_id}/findings",
+    response_model=list[FindingResponse],
+)
+def list_project_findings(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+    }
+
+    if not ({"BUILDER", "ADMIN"} & user_roles):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions",
+        )
+
+    if "ADMIN" not in user_roles:
+        builder_profile = get_builder_profile(
+            db,
+            current_user.id,
+        )
+
+        if builder_profile is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Builder profile not found",
+            )
+
+        project = get_builder_project(
+            db,
+            project_id,
+            builder_profile.id,
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found",
+            )
+
+    return get_project_findings(
+        db=db,
+        project_id=project_id,
+    )
+
+
+
+@router.patch(
+    "/{project_id}/findings/{finding_id}",
+    response_model=FindingResponse,
+)
+def update_project_finding(
+    project_id: UUID,
+    finding_id: UUID,
+    payload: FindingUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+    }
+
+    if not ({"BUILDER", "ADMIN"} & user_roles):
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient permissions",
+        )
+
+    finding = get_finding(
+        db=db,
+        finding_id=finding_id,
+    )
+
+    if finding is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Finding not found",
+        )
+
+    if (
+        finding.compliance_result is None
+        or finding.compliance_result.project_id != project_id
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="Finding not found",
+        )
+
+    if "ADMIN" not in user_roles:
+        builder_profile = get_builder_profile(
+            db,
+            current_user.id,
+        )
+
+        if builder_profile is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Builder profile not found",
+            )
+
+        project = get_builder_project(
+            db,
+            project_id,
+            builder_profile.id,
+        )
+
+        if project is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found",
+            )
+
+    try:
+        updated_finding = ComplianceService().update_finding_status(
+            db=db,
+            finding_id=finding_id,
+            status=payload.status,
+            resolution_note=payload.resolution_note,
+        )
+
+        db.commit()
+
+        return updated_finding
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
 
 # ============================================================
 # CREATE EVALUATION RUN

@@ -614,3 +614,119 @@ def test_builder_cannot_access_evaluation_run_from_another_project(
 
     finally:
         app.dependency_overrides.clear()
+
+def test_update_finding_status_success(monkeypatch):
+    project_id = uuid4()
+    finding_id = uuid4()
+    compliance_result_id = uuid4()
+
+    builder_user = SimpleNamespace(
+        id=uuid4(),
+        roles=[
+            SimpleNamespace(
+                role=SimpleNamespace(name="BUILDER")
+            )
+        ],
+    )
+
+    builder_profile = SimpleNamespace(
+        id=uuid4(),
+        user_id=builder_user.id,
+    )
+
+    project = SimpleNamespace(
+        id=project_id,
+        builder_id=builder_profile.id,
+    )
+
+    finding = SimpleNamespace(
+        id=finding_id,
+        compliance_result_id=compliance_result_id,
+        compliance_result=SimpleNamespace(
+            project_id=project_id
+        ),
+        severity="HIGH",
+        title="Fire safety documentation should be available.",
+        description="Required document was not found.",
+        status="OPEN",
+        resolution_note=None,
+        resolved_at=None,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    updated_finding = SimpleNamespace(
+    id=finding.id,
+    compliance_result_id=finding.compliance_result_id,
+    compliance_result=finding.compliance_result,
+    severity=finding.severity,
+    title=finding.title,
+    description=finding.description,
+    status="RESOLVED",
+    resolution_note="Fire Safety NOC received and verified.",
+    resolved_at=datetime.now(timezone.utc),
+    created_at=finding.created_at,
+    updated_at=datetime.now(timezone.utc),
+)
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: builder_user
+    )
+
+    mock_db = SimpleNamespace(
+        commit=lambda: None,
+    )
+
+    app.dependency_overrides[project_router.get_db] = (
+        lambda: mock_db
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_builder_profile",
+        lambda db, user_id: builder_profile,
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_builder_project",
+        lambda db, project_id_arg, builder_id: project,
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_finding",
+        lambda db, finding_id: finding,
+    )
+
+    monkeypatch.setattr(
+        project_router.ComplianceService,
+        "update_finding_status",
+        lambda self, db, finding_id, status, resolution_note:
+            updated_finding,
+    )
+
+    try:
+        response = client.patch(
+            f"/api/v1/projects/{project_id}/findings/{finding_id}",
+            json={
+                "status": "RESOLVED",
+                "resolution_note": (
+                    "Fire Safety NOC received and verified."
+                ),
+            },
+        )
+
+        assert response.status_code == 200
+
+        body = response.json()
+
+        assert body["id"] == str(finding_id)
+        assert body["status"] == "RESOLVED"
+        assert body["resolution_note"] == (
+            "Fire Safety NOC received and verified."
+        )
+        assert body["resolved_at"] is not None
+
+    finally:
+        app.dependency_overrides.clear()
