@@ -300,6 +300,26 @@ class RuleEvaluator:
             },
         )
 
+    @staticmethod
+    def _numeric_value_or_review(
+        field_name: str,
+        actual: Any,
+    ) -> EvaluationResult | None:
+        if not isinstance(actual, (int, float)) or isinstance(actual, bool):
+            return EvaluationResult(
+                outcome=EvaluationOutcome.NEEDS_REVIEW,
+                explanation=(
+                    f"Field '{field_name}' contains an invalid "
+                    "numeric value."
+                ),
+                evidence={
+                    "field": field_name,
+                    "actual": actual,
+                },
+            )
+        return None
+
+
     @classmethod
     def _field_min(
         cls,
@@ -315,6 +335,15 @@ class RuleEvaluator:
             )
 
         field_name, actual = field
+
+
+        numeric_review = cls._numeric_value_or_review(
+            field_name,
+            actual,
+        )
+
+        if numeric_review is not None:
+            return numeric_review
 
         if "value" not in logic:
             raise InvalidRuleError(
@@ -362,6 +391,14 @@ class RuleEvaluator:
 
         field_name, actual = field
 
+        numeric_review = cls._numeric_value_or_review(
+            field_name,
+            actual,
+        )
+
+        if numeric_review is not None:
+            return numeric_review
+
         if "value" not in logic:
             raise InvalidRuleError(
                 "FIELD_MAX requires value"
@@ -407,6 +444,7 @@ class RuleEvaluator:
             )
 
         field_name, actual = field
+        
 
         if "minimum" not in logic or "maximum" not in logic:
             raise InvalidRuleError(
@@ -420,6 +458,12 @@ class RuleEvaluator:
             raise InvalidRuleError(
                 "FIELD_RANGE minimum cannot exceed maximum"
             )
+        numeric_review = cls._numeric_value_or_review(
+                    field_name,
+                    actual,
+                )
+        if numeric_review is not None:
+            return numeric_review
 
         if minimum <= actual <= maximum:
             outcome = EvaluationOutcome.PASS

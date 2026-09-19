@@ -9,7 +9,7 @@ from app.rules.exceptions import (
     InvalidRuleError,
     UnsupportedOperatorError,
 )
-from app.rules.types import EvaluationOutcome
+from app.rules.types import EvaluationOperator, EvaluationOutcome
 
 
 @pytest.fixture
@@ -274,3 +274,157 @@ def test_field_range_requires_valid_bounds(evaluator, context):
             },
             context,
         )
+
+
+def test_document_exists_requires_document_type(evaluator, context):
+    with pytest.raises(InvalidRuleError):
+        evaluator.evaluate(
+            {
+                "type": "DOCUMENT_EXISTS",
+            },
+            context,
+        )
+
+
+def test_field_exists_requires_field(evaluator, context):
+    with pytest.raises(InvalidRuleError):
+        evaluator.evaluate(
+            {
+                "type": "FIELD_EXISTS",
+            },
+            context,
+        )
+
+
+def test_field_equals_requires_value(evaluator, context):
+    with pytest.raises(InvalidRuleError):
+        evaluator.evaluate(
+            {
+                "type": "FIELD_EQUALS",
+                "field": "project_type",
+            },
+            context,
+        )
+
+
+def test_field_min_requires_value(evaluator, context):
+    with pytest.raises(InvalidRuleError):
+        evaluator.evaluate(
+            {
+                "type": "FIELD_MIN",
+                "field": "number_of_floors",
+            },
+            context,
+        )
+
+
+def test_field_range_requires_bounds(evaluator, context):
+    with pytest.raises(InvalidRuleError):
+        evaluator.evaluate(
+            {
+                "type": "FIELD_RANGE",
+                "field": "number_of_floors",
+                "minimum": 5,
+            },
+            context,
+        )
+
+def test_field_exists_with_none_value_needs_review(evaluator, context):
+    context_with_none = EvidenceContext(
+        project_id=context.project_id,
+        documents=context.documents,
+        fields={
+            **context.fields,
+            "missing_value": None,
+        },
+        property_type=context.property_type,
+        evaluation_time=context.evaluation_time,
+    )
+
+    result = evaluator.evaluate(
+        {
+            "type": "FIELD_EXISTS",
+            "field": "missing_value",
+        },
+        context_with_none,
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW
+
+
+def test_field_min_with_invalid_numeric_value(evaluator, context):
+    invalid_context = EvidenceContext(
+        project_id=context.project_id,
+        documents=context.documents,
+        fields={
+            **context.fields,
+            "number_of_floors": "invalid",
+        },
+        property_type=context.property_type,
+        evaluation_time=context.evaluation_time,
+    )
+
+    result = evaluator.evaluate(
+        {
+            "type": EvaluationOperator.FIELD_MIN,
+            "field": "number_of_floors",
+            "value": 5,
+        },
+        invalid_context,
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW
+    assert "invalid numeric value" in result.explanation
+    assert result.evidence["field"] == "number_of_floors"
+    assert result.evidence["actual"] == "invalid"
+
+
+def test_field_max_with_invalid_numeric_value(evaluator, context):
+    invalid_context = EvidenceContext(
+        project_id=context.project_id,
+        documents=context.documents,
+        fields={
+            **context.fields,
+            "number_of_floors": "invalid",
+        },
+        property_type=context.property_type,
+        evaluation_time=context.evaluation_time,
+    )
+
+    result = evaluator.evaluate(
+        {
+            "type": EvaluationOperator.FIELD_MAX,
+            "field": "number_of_floors",
+            "value": 10,
+        },
+        invalid_context,
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW
+    assert "invalid numeric value" in result.explanation
+
+
+def test_field_range_with_invalid_numeric_value(evaluator, context):
+    invalid_context = EvidenceContext(
+        project_id=context.project_id,
+        documents=context.documents,
+        fields={
+            **context.fields,
+            "number_of_floors": "invalid",
+        },
+        property_type=context.property_type,
+        evaluation_time=context.evaluation_time,
+    )
+
+    result = evaluator.evaluate(
+        {
+            "type": EvaluationOperator.FIELD_RANGE,
+            "field": "number_of_floors",
+            "minimum": 1,
+            "maximum": 10,
+        },
+        invalid_context,
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW
+    assert "invalid numeric value" in result.explanation
