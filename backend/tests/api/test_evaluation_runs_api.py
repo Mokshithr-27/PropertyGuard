@@ -730,3 +730,139 @@ def test_update_finding_status_success(monkeypatch):
 
     finally:
         app.dependency_overrides.clear()
+
+def test_get_project_findings_requires_authentication():
+    response = client.get(
+        "/api/v1/projects/00000000-0000-0000-0000-000000000000/findings"
+    )
+
+    assert response.status_code == 401
+
+def test_get_project_findings_rejects_unauthorized_role():
+    unauthorized_user = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000001",
+        roles=[
+            SimpleNamespace(
+                role=SimpleNamespace(name="BUYER")
+            )
+        ],
+    )
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: unauthorized_user
+    )
+
+    try:
+        response = client.get(
+            "/api/v1/projects/00000000-0000-0000-0000-000000000000/findings"
+        )
+
+        assert response.status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+def test_builder_cannot_access_unowned_project_findings(monkeypatch):
+    builder_user = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000001",
+        roles=[
+            SimpleNamespace(
+                role=SimpleNamespace(name="BUILDER")
+            )
+        ],
+    )
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: builder_user
+    )
+
+    app.dependency_overrides[project_router.get_db] = (
+        lambda: SimpleNamespace()
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_builder_profile",
+        lambda db, user_id: SimpleNamespace(
+            id="builder-profile-id"
+        ),
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_builder_project",
+        lambda db, project_id, builder_id: None,
+    )
+
+    try:
+        response = client.get(
+            "/api/v1/projects/"
+            "00000000-0000-0000-0000-000000000000/findings"
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Project not found"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_builder_cannot_update_finding_in_unowned_project(monkeypatch):
+    project_id = uuid4()
+    finding_id = uuid4()
+
+    builder_user = SimpleNamespace(
+        id=uuid4(),
+        roles=[
+            SimpleNamespace(
+                role=SimpleNamespace(name="BUILDER")
+            )
+        ],
+    )
+
+    builder_profile = SimpleNamespace(
+        id=uuid4(),
+        user_id=builder_user.id,
+    )
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: builder_user
+    )
+
+    app.dependency_overrides[project_router.get_db] = (
+        lambda: SimpleNamespace()
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_builder_profile",
+        lambda db, user_id: builder_profile,
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_builder_project",
+        lambda db, project_id_arg, builder_id: None,
+    )
+    monkeypatch.setattr(
+        project_router,
+        "get_finding",
+        lambda db, finding_id: SimpleNamespace(
+            id=finding_id,
+            compliance_result=SimpleNamespace(
+                project_id=project_id
+            ),
+        ),
+    )
+
+    try:
+        response = client.patch(
+            f"/api/v1/projects/{project_id}/findings/{finding_id}",
+            json={
+                "status": "RESOLVED",
+                "resolution_note": "Unauthorized update attempt.",
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Project not found"
+
+    finally:
+        app.dependency_overrides.clear()
