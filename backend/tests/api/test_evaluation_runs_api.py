@@ -731,6 +731,7 @@ def test_update_finding_status_success(monkeypatch):
     finally:
         app.dependency_overrides.clear()
 
+
 def test_get_project_findings_requires_authentication():
     response = client.get(
         "/api/v1/projects/00000000-0000-0000-0000-000000000000/findings"
@@ -863,6 +864,134 @@ def test_builder_cannot_update_finding_in_unowned_project(monkeypatch):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Project not found"
+
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_can_view_project_findings(monkeypatch):
+    project_id = uuid4()
+
+    admin_user = SimpleNamespace(
+        id=uuid4(),
+        roles=[
+            SimpleNamespace(
+                role=SimpleNamespace(name="ADMIN")
+            )
+        ],
+    )
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: admin_user
+    )
+
+    app.dependency_overrides[project_router.get_db] = (
+        lambda: SimpleNamespace()
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_project_findings",
+        lambda db, project_id: [],
+    )
+
+    try:
+        response = client.get(
+            f"/api/v1/projects/{project_id}/findings"
+        )
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    finally:
+        app.dependency_overrides.clear()
+
+def test_admin_can_update_finding_status(monkeypatch):
+    project_id = uuid4()
+    finding_id = uuid4()
+    compliance_result_id = uuid4()
+
+    admin_user = SimpleNamespace(
+        id=uuid4(),
+        roles=[
+            SimpleNamespace(
+                role=SimpleNamespace(name="ADMIN")
+            )
+        ],
+    )
+
+    finding = SimpleNamespace(
+        id=finding_id,
+        compliance_result_id=compliance_result_id,
+        compliance_result=SimpleNamespace(
+            project_id=project_id
+        ),
+        severity="HIGH",
+        title="Fire safety documentation should be available.",
+        description="Required document was not found.",
+        status="OPEN",
+        resolution_note=None,
+        resolved_at=None,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    updated_finding = SimpleNamespace(
+        id=finding_id,
+        compliance_result_id=compliance_result_id,
+        compliance_result=finding.compliance_result,
+        severity="HIGH",
+        title=finding.title,
+        description=finding.description,
+        status="RESOLVED",
+        resolution_note="Verified by admin.",
+        resolved_at=datetime.now(timezone.utc),
+        created_at=finding.created_at,
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: admin_user
+    )
+
+    mock_db = SimpleNamespace(
+        commit=lambda: None,
+    )
+
+    app.dependency_overrides[project_router.get_db] = (
+        lambda: mock_db
+    )
+
+    monkeypatch.setattr(
+        project_router,
+        "get_finding",
+        lambda db, finding_id: finding,
+    )
+
+    monkeypatch.setattr(
+        project_router.ComplianceService,
+        "update_finding_status",
+        lambda self, db, finding_id, status, resolution_note:
+            updated_finding,
+    )
+
+    try:
+        response = client.patch(
+            f"/api/v1/projects/{project_id}/findings/{finding_id}",
+            json={
+                "status": "RESOLVED",
+                "resolution_note": "Verified by admin.",
+            },
+        )
+
+        assert response.status_code == 200
+
+        body = response.json()
+
+        assert body["id"] == str(finding_id)
+        assert body["status"] == "RESOLVED"
+        assert body["resolution_note"] == "Verified by admin."
+        assert body["resolved_at"] is not None
 
     finally:
         app.dependency_overrides.clear()
