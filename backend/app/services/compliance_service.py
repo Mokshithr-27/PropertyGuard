@@ -25,6 +25,12 @@ from app.repositories.document_repository import (
     get_project_documents,
 )
 
+from app.repositories.document_analysis_repository import (
+    get_document_analysis_evidence,
+    get_latest_document_analysis,
+)
+
+
 from app.services.project_service import get_project
 from app.rules.context import DocumentEvidence, EvidenceContext
 from app.rules.evaluator import RuleEvaluator
@@ -247,6 +253,15 @@ class ComplianceService:
 
         document_evidence = []
 
+        # Project-level canonical fields.
+        fields: dict[str, object] = {
+            "project_type": project.project_type,
+        }
+
+        # Track semantic evidence values before promoting them
+        # into the compliance context.
+        semantic_values: dict[str, set[str]] = {}
+
         for document in documents:
             latest_version = get_latest_version(
                 db,
@@ -269,15 +284,62 @@ class ComplianceService:
                 )
             )
 
+            if latest_version is None:
+                continue
+
+            analysis = get_latest_document_analysis(
+                db,
+                latest_version.id,
+            )
+
+            if analysis is None:
+                continue
+
+            evidence_items = get_document_analysis_evidence(
+                db,
+                analysis.id,
+            )
+
+            for evidence in evidence_items:
+                # Raw page text is retained as evidence but must not
+                # become a compliance field.
+                if evidence.field_name == "page_text":
+                    continue
+
+                if not evidence.field_name:
+                    continue
+
+                if evidence.field_value is None:
+                    continue
+
+                value = evidence.field_value.strip()
+
+                if not value:
+                    continue
+
+                semantic_values.setdefault(
+                    evidence.field_name,
+                    set(),
+                ).add(value)
+
+        # Only promote unambiguous semantic evidence.
+        #
+        # If multiple analyses/documents provide different values
+        # for the same field, leave that field absent so the rule
+        # evaluator conservatively returns NEEDS_REVIEW.
+        for field_name, values in semantic_values.items():
+            if len(values) == 1:
+                fields[field_name] = next(iter(values))
+
         return EvidenceContext(
             project_id=project.id,
             documents=tuple(document_evidence),
-            fields={
-                "project_type": project.project_type,
-            },
+            fields=fields,
             property_type=project.project_type,
             evaluation_time=datetime.now(timezone.utc),
         )
+
+
 
     def evaluate_rule(
         self,

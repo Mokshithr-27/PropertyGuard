@@ -89,3 +89,43 @@ class UnitResponse(BaseModel):
     unit_type: str | None
     area_sqft: int | None
     created_at: datetime
+
+
+class RequiredDocumentResponse(BaseModel):
+    document_type: str
+    name: str
+    description: str
+    is_mandatory: bool
+    authority: str
+    category: str
+    accepted_formats: list[str] = ["application/pdf", "image/png", "image/jpeg"]
+
+
+class ProjectListItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    builder_id: UUID
+    name: str
+    description: str | None
+    project_type: str
+    address: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    latest_version_number: int | None = None
+    documents_count: int = 0
+    compliance_score: int | None = None
+
+
+class ProjectStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(DRAFT|ACTIVE|INACTIVE|SUSPENDED)$")
+    reason: str | None = None
+
+
+class ProjectActionResponse(BaseModel):
+    id: UUID
+    name: str
+    status: str
+    message: str
+

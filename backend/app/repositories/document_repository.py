@@ -95,3 +95,23 @@ def soft_delete_document(
     db.refresh(document)
 
     return document
+
+def update_document_version(
+    db: Session,
+    version: DocumentVersion,
+) -> DocumentVersion:
+    db.add(version)
+    db.flush()
+    db.refresh(version)
+    return version
+
+def get_document_version(
+    db: Session,
+    version_id: UUID,
+) -> DocumentVersion | None:
+    return db.scalar(
+        select(DocumentVersion).where(
+            DocumentVersion.id == version_id,
+            DocumentVersion.deleted_at.is_(None),
+        )
+    )

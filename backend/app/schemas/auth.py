@@ -8,6 +8,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=2, max_length=255)
     phone: str | None = Field(default=None, max_length=30)
+    role: str | None = Field(default="BUILDER", max_length=30)
 
 
 class LoginRequest(BaseModel):
@@ -24,6 +25,7 @@ class UserResponse(BaseModel):
     phone: str | None
     is_active: bool
     is_email_verified: bool
+    roles: list[str] = []
 
 
 class TokenResponse(BaseModel):

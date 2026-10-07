@@ -63,6 +63,17 @@ def create_project(
     )
 
     db.add(project)
+    db.flush()
+
+    # Automatically initialize initial ProjectVersion (v1 DRAFT)
+    initial_version = ProjectVersion(
+        project_id=project.id,
+        version_number=1,
+        status="DRAFT",
+        submitted_by=builder.user_id if hasattr(builder, "user_id") else None,
+    )
+    db.add(initial_version)
+
     db.commit()
     db.refresh(project)
 
@@ -91,6 +102,112 @@ def get_builder_project(
             Project.builder_id == builder_profile_id,
         )
     )
+
+
+def get_builder_projects(
+    db: Session,
+    builder_profile_id: UUID,
+) -> list[Project]:
+    return list(
+        db.scalars(
+            select(Project)
+            .where(Project.builder_id == builder_profile_id)
+            .order_by(Project.created_at.desc())
+        ).all()
+    )
+
+
+def get_required_documents(project_type: str) -> list[dict]:
+    """
+    Returns statutory and compliance document requirements for property projects
+    in accordance with Telangana real estate and municipal building regulations.
+    """
+    normalized_type = (project_type or "").upper().strip()
+
+    requirements = [
+        {
+            "document_type": "SANCTIONED_PLAN",
+            "name": "Municipal Sanctioned Building Plan",
+            "description": "Approved architectural & structural blueprint from GHMC, HMDA, or DTCP validating permissible FSI, setbacks, and floor limits.",
+            "is_mandatory": True,
+            "authority": "Competent Municipal Planning Authority (GHMC / HMDA / DTCP)",
+            "category": "DOCUMENTATION",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        },
+        {
+            "document_type": "LAND_TITLE",
+            "name": "30-Year Title Search & Sale Deed",
+            "description": "Title ownership deed establishing clear, marketable, and unencumbered ownership of the subject plot footprint.",
+            "is_mandatory": True,
+            "authority": "Registration & Stamps Department, Telangana",
+            "category": "LEGAL",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        },
+        {
+            "document_type": "ENCUMBRANCE_CERTIFICATE",
+            "name": "Encumbrance Certificate (EC Form 15/16)",
+            "description": "Current non-encumbrance certificate verifying freedom from prior mortgages, legal liens, or statutory attachments.",
+            "is_mandatory": True,
+            "authority": "Sub-Registrar Office (Registration & Stamps Dept)",
+            "category": "LEGAL",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        },
+    ]
+
+    if normalized_type in ("APARTMENT", "VILLA"):
+        requirements.append({
+            "document_type": "RERA",
+            "name": "Telangana RERA Registration Certificate",
+            "description": "Statutory registration under TS-RERA Section 3/4 protecting prospective buyers and validating project completion timelines.",
+            "is_mandatory": True,
+            "authority": "Telangana Real Estate Regulatory Authority (TSRERA)",
+            "category": "REGULATORY",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        })
+    else:
+        requirements.append({
+            "document_type": "RERA",
+            "name": "RERA Exemption / Registration Certificate",
+            "description": "RERA registration certificate or statutory exemption declaration if plot footprint is below threshold.",
+            "is_mandatory": False,
+            "authority": "Telangana Real Estate Regulatory Authority (TSRERA)",
+            "category": "REGULATORY",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        })
+
+    if normalized_type == "APARTMENT":
+        requirements.append({
+            "document_type": "FIRE_NOC",
+            "name": "Chief Fire Officer (CFO) Provisional NOC",
+            "description": "Provisional Fire NOC certifying fire engine driveways, minimum turning radius, pressurized staircases, and wet risers.",
+            "is_mandatory": True,
+            "authority": "Telangana State Disaster Response and Fire Services",
+            "category": "SAFETY",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        })
+    else:
+        requirements.append({
+            "document_type": "FIRE_NOC",
+            "name": "Fire Safety NOC / Exemption",
+            "description": "Fire clearance or exemption certificate for individual / low-rise residential structures.",
+            "is_mandatory": False,
+            "authority": "Telangana State Disaster Response and Fire Services",
+            "category": "SAFETY",
+            "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+        })
+
+    requirements.append({
+        "document_type": "COMMENCEMENT_CERTIFICATE",
+        "name": "Commencement Certificate (Plinth Level)",
+        "description": "Plinth verification certification from the planning authority allowing structural superstructure work to proceed.",
+        "is_mandatory": False,
+        "authority": "Municipal Town Planning Section",
+        "category": "DOCUMENTATION",
+        "accepted_formats": ["application/pdf", "image/png", "image/jpeg"],
+    })
+
+    return requirements
+
 
 
 # ---------------------------------------------------------------------------

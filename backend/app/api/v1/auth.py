@@ -37,6 +37,7 @@ def register(
             password=data.password,
             full_name=data.full_name,
             phone=data.phone,
+            role=data.role,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -79,5 +80,15 @@ def login(
 def get_me(
     current_user=Depends(get_current_user),
 ):
-    return current_user
+    role_names = [ur.role.name for ur in current_user.roles if ur.role] if hasattr(current_user, "roles") and current_user.roles else []
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=current_user.full_name,
+        phone=current_user.phone,
+        is_active=current_user.is_active,
+        is_email_verified=current_user.is_email_verified,
+        roles=role_names,
+    )
+
 

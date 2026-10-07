@@ -210,6 +210,18 @@ class DocumentVersion(Base):
         foreign_keys=[uploaded_by],
     )
 
+    processing_jobs = relationship(
+        "DocumentProcessingJob",
+        back_populates="document_version",
+        cascade="all, delete-orphan",
+    )
+
+    analyses = relationship(
+        "DocumentAnalysis",
+        back_populates="document_version",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         Index(
             "uq_document_version_number",

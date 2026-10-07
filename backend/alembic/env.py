@@ -27,6 +27,7 @@ from app.models import (
     Finding,
     Discrepancy,
     EvaluationRun,
+    DocumentProcessingJob,
 )
 
 # this is the Alembic Config object, which provides

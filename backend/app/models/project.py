@@ -62,10 +62,12 @@ class Project(Base):
             "DRAFT",
             "ACTIVE",
             "INACTIVE",
+            "SUSPENDED",
             name="project_status",
         ),
         nullable=False,
         default="DRAFT",
+
     )
 
     created_at: Mapped[datetime] = mapped_column(

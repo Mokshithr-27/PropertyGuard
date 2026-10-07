@@ -4,6 +4,9 @@ from app.models.builder import BuilderProfile, BuilderVerification
 from app.models.project import Project, ProjectVersion, Building, Unit
 from app.models.document import Document, DocumentVersion
 from app.models.evaluation import EvaluationRun
+
+from app.models.document_processing_job import DocumentProcessingJob
+
 from app.models.compliance import (
     ComplianceRule,
     RuleVersion,
@@ -12,6 +15,11 @@ from app.models.compliance import (
     ComplianceResult,
     Finding,
     Discrepancy,
+)
+
+from app.models.document_analysis import (
+    DocumentAnalysis,
+    DocumentEvidence,
 )
 
 
@@ -34,4 +42,7 @@ __all__ = [
     "ComplianceResult",
     "Finding",
     "Discrepancy",
+    "DocumentProcessingJob",
+    "DocumentAnalysis",
+    "DocumentEvidence",
 ]

@@ -31,3 +31,5 @@ frontend/build/
 
 # Archives
 *.zip
+
+.ocr-venv/

@@ -274,7 +274,10 @@ def test_build_evidence_context(monkeypatch):
         expiry_date=None,
     )
 
+    latest_version_id = uuid.uuid4()
+
     latest_version = SimpleNamespace(
+        id=latest_version_id,
         version_number=3,
     )
 
@@ -291,6 +294,16 @@ def test_build_evidence_context(monkeypatch):
     monkeypatch.setattr(
         "app.services.compliance_service.get_latest_version",
         lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: None,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: [],
     )
 
     context = service.build_evidence_context(
@@ -1426,3 +1439,309 @@ def test_run_evaluation_fails_when_active_rule_version_is_missing(monkeypatch):
             make_fake_db(),
             project_id,
         )
+
+def test_build_evidence_context_promotes_semantic_evidence(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    analysis_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Registration Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=2,
+    )
+
+    analysis = SimpleNamespace(
+        id=analysis_id,
+    )
+
+    evidence = [
+        SimpleNamespace(
+            field_name="rera_number",
+            field_value="P123456789",
+            page_number=1,
+            created_at=None,
+        ),
+        SimpleNamespace(
+            field_name="project_name",
+            field_value="Green Valley Apartments",
+            page_number=1,
+            created_at=None,
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: evidence,
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert context.fields["project_type"] == "APARTMENT"
+    assert context.fields["rera_number"] == "P123456789"
+    assert context.fields["project_name"] == "Green Valley Apartments"
+
+
+
+def test_build_evidence_context_ignores_page_text(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    analysis_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=1,
+    )
+
+    analysis = SimpleNamespace(
+        id=analysis_id,
+    )
+
+    evidence = [
+        SimpleNamespace(
+            field_name="page_text",
+            field_value="RERA Number: P123456789",
+            page_number=1,
+            created_at=None,
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: evidence,
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert context.fields == {
+        "project_type": "APARTMENT",
+    }
+
+
+
+def test_build_evidence_context_ignores_conflicting_semantic_values(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    analysis_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=1,
+    )
+
+    analysis = SimpleNamespace(
+        id=analysis_id,
+    )
+
+    evidence = [
+        SimpleNamespace(
+            field_name="rera_number",
+            field_value="P123456789",
+            page_number=1,
+            created_at=None,
+        ),
+        SimpleNamespace(
+            field_name="rera_number",
+            field_value="P987654321",
+            page_number=2,
+            created_at=None,
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: evidence,
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert "rera_number" not in context.fields
+    assert context.fields["project_type"] == "APARTMENT"
+
+
+def test_build_evidence_context_uses_latest_version_for_analysis(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=4,
+    )
+
+    captured = {}
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    def fake_get_latest_analysis(db, document_version_id):
+        captured["version_id"] = document_version_id
+        return None
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        fake_get_latest_analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: [],
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert captured["version_id"] == version_id
+    assert context.documents[0].latest_version_number == 4
+
+
+

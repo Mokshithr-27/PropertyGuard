@@ -13,6 +13,7 @@ def register_user(
     password: str,
     full_name: str,
     phone: str | None = None,
+    role: str | None = None,
 ) -> User:
     existing_user = db.scalar(
         select(User).where(User.email == email)
@@ -42,12 +43,29 @@ def register_user(
         user_id=user.id,
         role_id=buyer_role.id,
     )
-
     db.add(user_role)
+
+    req_role = (role or "").upper().strip()
+    if req_role == "BUILDER":
+        builder_role = db.scalar(
+            select(Role).where(Role.name == "BUILDER")
+        )
+        if builder_role:
+            db.add(UserRole(user_id=user.id, role_id=builder_role.id))
+            from app.models.builder import BuilderProfile
+            db.add(
+                BuilderProfile(
+                    user_id=user.id,
+                    company_name=full_name or "Builder Enterprise",
+                    verification_status="VERIFIED",
+                )
+            )
+
     db.commit()
     db.refresh(user)
 
     return user
+
 
 
 def authenticate_user(

@@ -50,3 +50,31 @@ class DocumentResponse(BaseModel):
 
 class DocumentDetailResponse(DocumentResponse):
     versions: list[DocumentVersionResponse] = []
+
+class DocumentProcessingStatusUpdate(BaseModel):
+    processing_status: str
+
+class DocumentProcessingJobResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    document_version_id: UUID
+    status: str
+    attempt_count: int
+    queued_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
+    error_message: str | None
+    created_at: datetime
+
+
+class DocumentValidationResponse(BaseModel):
+    is_valid: bool
+    file_name: str
+    mime_type: str
+    file_size: int
+    file_size_formatted: str
+    sha256: str
+    detected_format: str
+    error: str | None = None
+    details: dict[str, str | int | bool] = {}

@@ -11,6 +11,11 @@ DATABASE_URL = os.getenv(
     "postgresql+psycopg://propertyguard:propertyguard_dev_password@localhost:5432/propertyguard",
 )
 
+REDIS_URL = os.getenv(
+    "REDIS_URL",
+    "redis://localhost:6379/0",
+)
+
 MINIO_ENDPOINT = os.getenv(
     "MINIO_ENDPOINT",
     "localhost:9000",
@@ -52,4 +57,29 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
         "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
         "30",
     )
+)
+
+AI_PROVIDER = os.getenv(
+    "AI_PROVIDER",
+    "mock",
+)
+
+AI_MODEL_NAME = os.getenv(
+    "AI_MODEL_NAME",
+    "mock-document-analyzer",
+)
+
+GEMINI_API_KEY = os.getenv(
+    "GEMINI_API_KEY",
+    "",
+)
+
+OLLAMA_BASE_URL = os.getenv(
+    "OLLAMA_BASE_URL",
+    "http://localhost:11434",
+)
+
+OLLAMA_MODEL_NAME = os.getenv(
+    "OLLAMA_MODEL_NAME",
+    "llama3.1:latest",
 )

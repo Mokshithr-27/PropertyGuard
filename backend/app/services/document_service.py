@@ -14,6 +14,7 @@ from app.repositories.document_repository import (
     create_document_version as create_document_version_record,
     get_latest_version,
     soft_delete_document as soft_delete_document_record,
+    update_document_version,
 )
 
 
@@ -251,3 +252,32 @@ def create_document(
             pass
 
         raise
+
+def update_document_processing_status(
+    db: Session,
+    version: DocumentVersion,
+    new_status: str,
+) -> DocumentVersion:
+    """
+    Update the processing status of a document version.
+    """
+
+    allowed_statuses = {
+        "UPLOADED",
+        "QUEUED",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+    }
+
+    if new_status not in allowed_statuses:
+        raise ValueError(
+            f"Invalid processing status: {new_status}"
+        )
+
+    version.processing_status = new_status
+
+    return update_document_version(
+        db,
+        version,
+    )
