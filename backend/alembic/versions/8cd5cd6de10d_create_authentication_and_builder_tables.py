@@ -1,4 +1,5 @@
-"""create authentication and builder tables
+"""PropertyGuard Alembic Migration: Create Authentication & Builder Tables
+Creates users, roles, user_roles, builder_profiles, and builder_verifications tables.
 
 Revision ID: 8cd5cd6de10d
 Revises: 

@@ -1,3 +1,10 @@
+"""
+PropertyGuard Rule Evaluator Unit Test Suite
+--------------------------------------------
+Validates deterministic execution across all operator types (DOCUMENT_EXISTS,
+DOCUMENT_NOT_EXPIRED, FIELD_EQUALS, FIELD_MIN, FIELD_MAX, LOGICAL_AND, LOGICAL_OR, LOGICAL_NOT).
+"""
+
 import uuid
 from datetime import datetime, timezone
 

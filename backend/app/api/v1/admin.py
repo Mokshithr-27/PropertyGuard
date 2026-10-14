@@ -1,3 +1,10 @@
+"""
+PropertyGuard Admin API Endpoints
+---------------------------------
+Provides protected administrative endpoints for reviewing builder registrations
+and approving/rejecting real estate project versions (restricted to ADMIN and SUPER_ADMIN).
+"""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status

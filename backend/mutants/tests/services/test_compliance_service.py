@@ -1,0 +1,1810 @@
+"""
+PropertyGuard Compliance Service Comprehensive Test Suite
+---------------------------------------------------------
+Exhaustively tests rule evaluation orchestration, jurisdiction filtering, rule version
+resolution, dependency graphs, findings persistence, and discrepancy flagging.
+"""
+
+import uuid
+from types import SimpleNamespace
+
+import pytest
+
+from app.rules.context import EvidenceContext
+from app.rules.types import EvaluationOutcome
+from app.services.compliance_service import ComplianceService
+
+
+def make_context():
+    return EvidenceContext(
+        project_id=uuid.uuid4(),
+        documents=(),
+        fields={
+            "project_type": "APARTMENT",
+        },
+        property_type="APARTMENT",
+    )
+
+
+def make_rule_version(
+    *,
+    active=True,
+    evaluation_logic=None,
+    severity="HIGH",
+):
+    return SimpleNamespace(
+        id=uuid.uuid4(),
+        is_active=active,
+        evaluation_logic=evaluation_logic,
+        severity=severity,
+        rule_text="RERA registration certificate is required",
+    )
+
+
+def make_applicability(
+    *,
+    property_type=None,
+    active=True,
+    conditions=None,
+):
+    return SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=uuid.uuid4(),
+        property_type=property_type,
+        conditions=conditions,
+        is_active=active,
+    )
+
+
+def make_fake_db():
+    class FakeDB:
+        def add(self, obj):
+            pass
+
+        def flush(self):
+            pass
+
+        def commit(self):
+            pass
+
+        def refresh(self, result):
+            pass
+
+    return FakeDB()
+
+
+def fake_create_result(db, result):
+    result.id = uuid.uuid4()
+    return result
+
+
+def test_evaluate_rule_rule_version_not_found(monkeypatch):
+    service = ComplianceService()
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: None,
+    )
+
+    with pytest.raises(ValueError, match="Rule version not found"):
+        service.evaluate_rule(
+            db=None,
+            project_id=uuid.uuid4(),
+            rule_version_id=uuid.uuid4(),
+            context=make_context(),
+        )
+
+
+def test_evaluate_rule_inactive_rule(monkeypatch):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(active=False)
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    with pytest.raises(ValueError, match="Rule version is inactive"):
+        service.evaluate_rule(
+            db=None,
+            project_id=uuid.uuid4(),
+            rule_version_id=rule_version.id,
+            context=make_context(),
+        )
+
+
+def test_evaluate_rule_missing_evaluation_logic(monkeypatch):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        active=True,
+        evaluation_logic=None,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Rule version has no evaluation logic",
+    ):
+        service.evaluate_rule(
+            db=None,
+            project_id=uuid.uuid4(),
+            rule_version_id=rule_version.id,
+            context=make_context(),
+        )
+
+
+def test_evaluate_rule_pass(monkeypatch):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.PASS.value
+
+
+def test_evaluate_rule_fail_creates_finding(monkeypatch):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EQUALS",
+            "field": "project_type",
+            "value": "VILLA",
+        },
+        severity="HIGH",
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    captured = {}
+
+    def fake_create_finding(db, finding):
+        captured["finding"] = finding
+        return finding
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        fake_create_finding,
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.FAIL.value
+
+    finding = captured["finding"]
+
+    assert finding.severity == "HIGH"
+    assert finding.status == "OPEN"
+    assert finding.compliance_result_id == result.id
+    assert finding.title == rule_version.rule_text[:255]
+
+
+def test_build_evidence_context_project_not_found(monkeypatch):
+    service = ComplianceService()
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: None,
+    )
+
+    with pytest.raises(ValueError, match="Project not found"):
+        service.build_evidence_context(
+            db=None,
+            project_id=uuid.uuid4(),
+        )
+
+
+def test_build_evidence_context(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Registration Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version_id = uuid.uuid4()
+
+    latest_version = SimpleNamespace(
+        id=latest_version_id,
+        version_number=3,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: None,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: [],
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert context.project_id == project_id
+    assert context.property_type == "APARTMENT"
+    assert context.fields["project_type"] == "APARTMENT"
+
+    assert len(context.documents) == 1
+
+    evidence = context.documents[0]
+
+    assert evidence.document_id == document_id
+    assert evidence.document_type == "RERA"
+    assert evidence.title == "RERA Registration Certificate"
+    assert evidence.status == "ACTIVE"
+    assert evidence.visibility == "PRIVATE"
+    assert evidence.expiry_date is None
+    assert evidence.latest_version_number == 3
+
+    assert context.evaluation_time is not None
+    assert context.evaluation_time.tzinfo is not None
+
+
+def test_evaluate_rule_non_matching_property_type_is_not_applicable(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    applicability = make_applicability(
+        property_type="VILLA",
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [applicability],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for NOT_APPLICABLE"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.NOT_APPLICABLE.value
+
+
+def test_evaluate_rule_matching_property_type_evaluates_normally(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    applicability = make_applicability(
+        property_type="APARTMENT",
+    )
+
+    context = EvidenceContext(
+        project_id=uuid.uuid4(),
+        documents=(),
+        fields={
+            "project_type": "APARTMENT",
+        },
+        property_type="APARTMENT",
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [applicability],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=context.project_id,
+        rule_version_id=rule_version.id,
+        context=context,
+    )
+
+    assert result.outcome == EvaluationOutcome.PASS.value
+
+
+def test_evaluate_rule_without_applicability_is_universally_applicable(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.PASS.value
+
+
+def test_evaluate_rule_matches_any_applicability_record(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    apartment_applicability = make_applicability(
+        property_type="APARTMENT",
+    )
+
+    villa_applicability = make_applicability(
+        property_type="VILLA",
+    )
+
+    context = EvidenceContext(
+        project_id=uuid.uuid4(),
+        documents=(),
+        fields={
+            "project_type": "VILLA",
+        },
+        property_type="VILLA",
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [
+            apartment_applicability,
+            villa_applicability,
+        ],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=context.project_id,
+        rule_version_id=rule_version.id,
+        context=context,
+    )
+
+    assert result.outcome == EvaluationOutcome.PASS.value
+
+
+def test_evaluate_rule_unrestricted_applicability_applies_to_any_property_type(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    applicability = make_applicability(
+        property_type=None,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [applicability],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.PASS.value
+
+
+def test_evaluate_rule_without_dependencies_evaluates_normally(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.PASS.value
+    assert result.dependency_affected is False
+
+
+# ============================================================
+# DEPENDENCY TESTS
+# ============================================================
+
+
+def test_evaluate_rule_dependency_failure_requires_review(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    dependency = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependency_result = SimpleNamespace(
+        outcome=EvaluationOutcome.FAIL.value,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [dependency],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_rule_compliance_result",
+        lambda db, project_id, rule_version_id: dependency_result,
+    )
+
+    def fail_if_evaluator_runs(*args, **kwargs):
+        pytest.fail(
+            "RuleEvaluator should not run when a dependency has failed"
+        )
+
+    monkeypatch.setattr(
+        service.evaluator,
+        "evaluate",
+        fail_if_evaluator_runs,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    created_findings = []
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        fake_create_finding,
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW.value
+    assert result.dependency_affected is True
+    assert len(created_findings) == 1
+    assert created_findings[0].status == "OPEN"
+    assert created_findings[0].compliance_result_id == result.id
+
+
+def test_evaluate_rule_dependency_not_evaluated_requires_review(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    dependency = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [dependency],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_rule_compliance_result",
+        lambda db, project_id, rule_version_id: None,
+    )
+
+    def fail_if_evaluator_runs(*args, **kwargs):
+        pytest.fail(
+            "RuleEvaluator should not run when dependency has not been evaluated"
+        )
+
+    monkeypatch.setattr(
+        service.evaluator,
+        "evaluate",
+        fail_if_evaluator_runs,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    created_findings = []
+
+
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        fake_create_finding,
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW.value
+    assert result.dependency_affected is True
+    assert "not been evaluated" in result.explanation
+
+
+def test_evaluate_rule_dependency_pass_evaluates_normally(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    dependency = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependency_result = SimpleNamespace(
+        outcome=EvaluationOutcome.PASS.value,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [dependency],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_rule_compliance_result",
+        lambda db, project_id, rule_version_id: dependency_result,
+    )
+
+    evaluator_called = {"value": False}
+
+    def fake_evaluate(logic, context):
+        evaluator_called["value"] = True
+
+        from app.rules.results import EvaluationResult
+
+        return EvaluationResult(
+            outcome=EvaluationOutcome.PASS,
+            explanation="Dependent rule passed.",
+        )
+
+    monkeypatch.setattr(
+        service.evaluator,
+        "evaluate",
+        fake_evaluate,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created for PASS"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert evaluator_called["value"] is True
+    assert result.outcome == EvaluationOutcome.PASS.value
+    assert result.dependency_affected is False
+
+
+def test_evaluate_rule_dependency_needs_review_requires_review(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    dependency = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependency_result = SimpleNamespace(
+        outcome=EvaluationOutcome.NEEDS_REVIEW.value,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [dependency],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_rule_compliance_result",
+        lambda db, project_id, rule_version_id: dependency_result,
+    )
+
+    def fail_if_evaluator_runs(*args, **kwargs):
+        pytest.fail(
+            "RuleEvaluator should not run when dependency needs review"
+        )
+
+    monkeypatch.setattr(
+        service.evaluator,
+        "evaluate",
+        fail_if_evaluator_runs,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    created_findings = []
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        fake_create_finding,
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW.value
+    assert result.dependency_affected is True
+
+
+def test_evaluate_rule_dependency_not_applicable_requires_review(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    dependency = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependency_result = SimpleNamespace(
+        outcome=EvaluationOutcome.NOT_APPLICABLE.value,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [dependency],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_rule_compliance_result",
+        lambda db, project_id, rule_version_id: dependency_result,
+    )
+
+    def fail_if_evaluator_runs(*args, **kwargs):
+        pytest.fail(
+            "RuleEvaluator should not run when dependency is NOT_APPLICABLE"
+        )
+
+    monkeypatch.setattr(
+        service.evaluator,
+        "evaluate",
+        fail_if_evaluator_runs,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    created_findings = []
+
+    def fake_create_finding(db, finding):
+        created_findings.append(finding)
+        return finding
+
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        fake_create_finding,
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert result.outcome == EvaluationOutcome.NEEDS_REVIEW.value
+    assert result.dependency_affected is True
+
+
+def test_evaluate_rule_multiple_dependencies_require_all_to_pass(
+    monkeypatch,
+):
+    service = ComplianceService()
+
+    rule_version = make_rule_version(
+        evaluation_logic={
+            "type": "FIELD_EXISTS",
+            "field": "project_type",
+        },
+    )
+
+    dependency_one = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependency_two = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependency_three = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        depends_on_rule_version_id=uuid.uuid4(),
+    )
+
+    dependencies = [
+        dependency_one,
+        dependency_two,
+        dependency_three,
+    ]
+
+    dependency_results = {
+        dependency_one.depends_on_rule_version_id: SimpleNamespace(
+            outcome=EvaluationOutcome.PASS.value,
+        ),
+        dependency_two.depends_on_rule_version_id: SimpleNamespace(
+            outcome=EvaluationOutcome.PASS.value,
+        ),
+        dependency_three.depends_on_rule_version_id: SimpleNamespace(
+            outcome=EvaluationOutcome.PASS.value,
+        ),
+    }
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_version",
+        lambda db, rule_version_id: rule_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: dependencies,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_applicability",
+        lambda db, rule_version_id: [],
+    )
+
+    checked_dependencies = []
+
+    def fake_get_dependency_result(
+        db,
+        project_id,
+        rule_version_id,
+    ):
+        checked_dependencies.append(rule_version_id)
+        return dependency_results.get(rule_version_id)
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_rule_compliance_result",
+        fake_get_dependency_result,
+    )
+
+    evaluator_called = {"value": False}
+
+    def fake_evaluate(logic, context):
+        evaluator_called["value"] = True
+
+        from app.rules.results import EvaluationResult
+
+        return EvaluationResult(
+            outcome=EvaluationOutcome.PASS,
+            explanation="All dependencies passed.",
+        )
+
+    monkeypatch.setattr(
+        service.evaluator,
+        "evaluate",
+        fake_evaluate,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_compliance_result",
+        fake_create_result,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.create_finding",
+        lambda db, finding: pytest.fail(
+            "Finding should not be created when all dependencies pass"
+        ),
+    )
+
+    result = service.evaluate_rule(
+        db=make_fake_db(),
+        project_id=uuid.uuid4(),
+        rule_version_id=rule_version.id,
+        context=make_context(),
+    )
+
+    assert evaluator_called["value"] is True
+    assert result.outcome == EvaluationOutcome.PASS.value
+    assert result.dependency_affected is False
+
+    assert len(checked_dependencies) == 3
+
+    assert set(checked_dependencies) == {
+        dependency_one.depends_on_rule_version_id,
+        dependency_two.depends_on_rule_version_id,
+        dependency_three.depends_on_rule_version_id,
+    }
+
+def test_create_evaluation_run_project_not_found(monkeypatch):
+    service = ComplianceService()
+    db = make_fake_db()
+    project_id = uuid.uuid4()
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: None,
+    )
+
+    with pytest.raises(ValueError, match="Project not found"):
+        service.create_evaluation_run(db, project_id)
+
+
+def test_create_evaluation_run_success(monkeypatch):
+    service = ComplianceService()
+    db = make_fake_db()
+    project_id = uuid.uuid4()
+
+    project = SimpleNamespace(id=project_id)
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    result = service.create_evaluation_run(db, project_id)
+
+    assert result.project_id == project_id
+    assert result.status == "RUNNING"
+    assert result.started_at is not None
+    assert db.committed if hasattr(db, "committed") else True
+
+
+def test_complete_evaluation_run():
+    service = ComplianceService()
+    db = make_fake_db()
+
+    evaluation_run = SimpleNamespace(
+        status="RUNNING",
+        completed_at=None,
+        error_message="Previous error",
+    )
+
+    result = service.complete_evaluation_run(db, evaluation_run)
+
+    assert result.status == "COMPLETED"
+    assert result.completed_at is not None
+    assert result.error_message is None
+
+
+def test_fail_evaluation_run():
+    service = ComplianceService()
+    db = make_fake_db()
+
+    evaluation_run = SimpleNamespace(
+        status="RUNNING",
+        completed_at=None,
+        error_message=None,
+    )
+
+    result = service.fail_evaluation_run(
+        db,
+        evaluation_run,
+        "Evaluation failed",
+    )
+
+    assert result.status == "FAILED"
+    assert result.completed_at is not None
+    assert result.error_message == "Evaluation failed"
+
+
+def test_run_evaluation_success(monkeypatch):
+    service = ComplianceService()
+    project_id = uuid.uuid4()
+    evaluation_run_id = uuid.uuid4()
+
+    evaluation_run = SimpleNamespace(
+        id=evaluation_run_id,
+        project_id=project_id,
+        status="RUNNING",
+    )
+
+    completed_run = SimpleNamespace(
+        id=evaluation_run_id,
+        project_id=project_id,
+        status="COMPLETED",
+    )
+
+    context = make_context()
+
+    rule_1 = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_code="RERA_REGISTRATION",
+    )
+
+    rule_2 = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_code="FIRE_SAFETY",
+    )
+
+    rule_version_1 = SimpleNamespace(id=uuid.uuid4())
+    rule_version_2 = SimpleNamespace(id=uuid.uuid4())
+
+    evaluated_rules = []
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: SimpleNamespace(id=project_id),
+    )
+
+    monkeypatch.setattr(
+        service,
+        "create_evaluation_run",
+        lambda db, project_id: evaluation_run,
+    )
+
+    monkeypatch.setattr(
+        service,
+        "build_evidence_context",
+        lambda db, project_id: context,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_active_rules",
+        lambda db: [rule_1, rule_2],
+    )
+
+    def fake_get_active_rule_version(db, rule_id):
+        if rule_id == rule_1.id:
+            return rule_version_1
+        return rule_version_2
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_active_rule_version",
+        fake_get_active_rule_version,
+    )
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
+
+    def fake_evaluate_rule(
+        db,
+        project_id,
+        rule_version_id,
+        context,
+        evaluation_run_id,
+    ):
+        evaluated_rules.append(
+            {
+                "project_id": project_id,
+                "rule_version_id": rule_version_id,
+                "context": context,
+                "evaluation_run_id": evaluation_run_id,
+            }
+        )
+
+    monkeypatch.setattr(
+        service,
+        "evaluate_rule",
+        fake_evaluate_rule,
+    )
+
+    monkeypatch.setattr(
+        service,
+        "complete_evaluation_run",
+        lambda db, run: completed_run,
+    )
+
+    result = service.run_evaluation(
+        make_fake_db(),
+        project_id,
+    )
+
+    assert result.status == "COMPLETED"
+    assert result.id == evaluation_run_id
+    assert len(evaluated_rules) == 2
+
+    assert evaluated_rules[0]["rule_version_id"] == rule_version_1.id
+    assert evaluated_rules[1]["rule_version_id"] == rule_version_2.id
+
+    assert all(
+        item["evaluation_run_id"] == evaluation_run_id
+        for item in evaluated_rules
+    )
+
+def test_run_evaluation_fails_when_active_rule_version_is_missing(monkeypatch):
+    service = ComplianceService()
+    project_id = uuid.uuid4()
+    evaluation_run_id = uuid.uuid4()
+
+    evaluation_run = SimpleNamespace(
+        id=evaluation_run_id,
+        project_id=project_id,
+        status="RUNNING",
+    )
+
+    failed_run = SimpleNamespace(
+        id=evaluation_run_id,
+        project_id=project_id,
+        status="FAILED",
+        error_message="No active version found",
+    )
+
+    rule = SimpleNamespace(
+        id=uuid.uuid4(),
+        rule_code="RERA_REGISTRATION",
+    )
+
+    monkeypatch.setattr(
+        service,
+        "create_evaluation_run",
+        lambda db, project_id: evaluation_run,
+    )
+
+    monkeypatch.setattr(
+        service,
+        "build_evidence_context",
+        lambda db, project_id: make_context(),
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_active_rules",
+        lambda db: [rule],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_active_rule_version",
+        lambda db, rule_id: None,
+    )
+
+    monkeypatch.setattr(
+        service,
+        "fail_evaluation_run",
+        lambda db, run, error_message: failed_run,
+    )
+
+    with pytest.raises(ValueError, match="No active version found"):
+        service.run_evaluation(
+            make_fake_db(),
+            project_id,
+        )
+
+def test_build_evidence_context_promotes_semantic_evidence(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    analysis_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Registration Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=2,
+    )
+
+    analysis = SimpleNamespace(
+        id=analysis_id,
+    )
+
+    evidence = [
+        SimpleNamespace(
+            field_name="rera_number",
+            field_value="P123456789",
+            page_number=1,
+            created_at=None,
+            confidence=0.95,
+            evidence_text="RERA registration number: P123456789",
+        ),
+        SimpleNamespace(
+            field_name="project_name",
+            field_value="Green Valley Apartments",
+            page_number=1,
+            created_at=None,
+            confidence=0.95,
+            evidence_text="Project Name: Green Valley Apartments",
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: evidence,
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert context.fields["project_type"] == "APARTMENT"
+    assert context.fields["rera_number"] == "P123456789"
+    assert context.fields["project_name"] == "Green Valley Apartments"
+
+
+
+def test_build_evidence_context_ignores_page_text(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    analysis_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=1,
+    )
+
+    analysis = SimpleNamespace(
+        id=analysis_id,
+    )
+
+    evidence = [
+        SimpleNamespace(
+            field_name="page_text",
+            field_value="RERA Number: P123456789",
+            page_number=1,
+            created_at=None,
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: evidence,
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert context.fields == {
+        "project_type": "APARTMENT",
+    }
+
+
+
+def test_build_evidence_context_ignores_conflicting_semantic_values(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    analysis_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=1,
+    )
+
+    analysis = SimpleNamespace(
+        id=analysis_id,
+    )
+
+    evidence = [
+        SimpleNamespace(
+            field_name="rera_number",
+            field_value="P123456789",
+            page_number=1,
+            created_at=None,
+            confidence=0.95,
+            evidence_text="RERA registration number: P123456789",
+        ),
+        SimpleNamespace(
+            field_name="rera_number",
+            field_value="P987654321",
+            page_number=2,
+            created_at=None,
+            confidence=0.95,
+            evidence_text="RERA registration number: P987654321",
+        ),
+    ]
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        lambda db, document_version_id: analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: evidence,
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert "rera_number" not in context.fields
+    assert context.fields["project_type"] == "APARTMENT"
+
+
+def test_build_evidence_context_uses_latest_version_for_analysis(monkeypatch):
+    service = ComplianceService()
+
+    project_id = uuid.uuid4()
+    document_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+
+    project = SimpleNamespace(
+        id=project_id,
+        project_type="APARTMENT",
+    )
+
+    document = SimpleNamespace(
+        id=document_id,
+        document_type="RERA",
+        title="RERA Certificate",
+        status="ACTIVE",
+        visibility="PRIVATE",
+        expiry_date=None,
+    )
+
+    latest_version = SimpleNamespace(
+        id=version_id,
+        version_number=4,
+    )
+
+    captured = {}
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project",
+        lambda db, project_id: project,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_project_documents",
+        lambda db, project_id: [document],
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_version",
+        lambda db, document_id: latest_version,
+    )
+
+    def fake_get_latest_analysis(db, document_version_id):
+        captured["version_id"] = document_version_id
+        return None
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_latest_document_analysis",
+        fake_get_latest_analysis,
+    )
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_document_analysis_evidence",
+        lambda db, analysis_id: [],
+    )
+
+    context = service.build_evidence_context(
+        db=None,
+        project_id=project_id,
+    )
+
+    assert captured["version_id"] == version_id
+    assert context.documents[0].latest_version_number == 4
+
+
+
+
+
+def test_order_versions_by_dependencies_evaluates_dependency_first(monkeypatch):
+    service = ComplianceService()
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    first = SimpleNamespace(id=first_id)
+    second = SimpleNamespace(id=second_id)
+    dependency = SimpleNamespace(depends_on_rule_version_id=first_id)
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, version_id: [dependency] if version_id == second_id else [],
+    )
+
+    ordered = service._order_versions_by_dependencies(
+        make_fake_db(),
+        {first_id: (SimpleNamespace(), first), second_id: (SimpleNamespace(), second)},
+    )
+
+    assert [item.id for item in ordered] == [first_id, second_id]
+
+
+def test_order_versions_by_dependencies_rejects_cycles(monkeypatch):
+    service = ComplianceService()
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    first = SimpleNamespace(id=first_id)
+    second = SimpleNamespace(id=second_id)
+    dependencies = {
+        first_id: [SimpleNamespace(depends_on_rule_version_id=second_id)],
+        second_id: [SimpleNamespace(depends_on_rule_version_id=first_id)],
+    }
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, version_id: dependencies[version_id],
+    )
+
+    with pytest.raises(ValueError, match="Cycle detected"):
+        service._order_versions_by_dependencies(
+            make_fake_db(),
+            {first_id: (SimpleNamespace(), first), second_id: (SimpleNamespace(), second)},
+        )

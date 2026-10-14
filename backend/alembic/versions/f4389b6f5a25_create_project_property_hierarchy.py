@@ -1,4 +1,5 @@
-"""create project property hierarchy
+"""PropertyGuard Alembic Migration: Create Project Property Hierarchy
+Creates projects, project_versions, buildings, and units tables.
 
 Revision ID: f4389b6f5a25
 Revises: 8cd5cd6de10d

@@ -1,0 +1,36 @@
+{
+    "exit_code_by_key": {
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_1": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_2": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_3": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_4": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_5": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_6": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_7": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_8": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_9": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_10": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_11": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_12": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_13": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_14": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_15": null,
+        "app.repositories.document_analysis_repository.x_get_latest_document_analysis__mutmut_16": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_1": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_2": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_3": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_4": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_5": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_6": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_7": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_8": null,
+        "app.repositories.document_analysis_repository.x_get_document_analysis_evidence__mutmut_9": null
+    },
+    "hash_by_function_name": {
+        "x_get_latest_document_analysis": "c2313c163973",
+        "x_get_document_analysis_evidence": "bea2fd34b62a"
+    },
+    "type_check_error_by_key": {},
+    "durations_by_key": {},
+    "estimated_durations_by_key": {}
+}

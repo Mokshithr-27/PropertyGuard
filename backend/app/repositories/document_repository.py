@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Repository
+---------------------------------
+Provides database query and persistence methods for Document and DocumentVersion
+entities, handling soft deletes, version lookups, and project document listings.
+"""
+
 from datetime import datetime
 from uuid import UUID
 

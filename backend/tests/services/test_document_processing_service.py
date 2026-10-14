@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Processing Service Test Suite
+----------------------------------------------------
+Tests lifecycle state transitions of document versions and processing jobs
+(queueing, starting, completing, and error handling).
+"""
+
 from types import SimpleNamespace
 
 import pytest

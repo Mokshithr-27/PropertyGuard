@@ -1,3 +1,9 @@
+/**
+ * PropertyGuard Input UI Component
+ * Accessible form text input component with support for labels, error messages,
+ * helper hints, leading icons, and right-side elements.
+ */
+
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
 import clsx from 'clsx';
 import styles from './Input.module.css';

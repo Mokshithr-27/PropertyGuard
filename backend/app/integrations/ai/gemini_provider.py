@@ -1,3 +1,11 @@
+"""
+PropertyGuard Google Gemini Document AI Provider
+-------------------------------------------------
+Implements DocumentAIProvider using Google GenAI SDK (Gemini models).
+Leverages structured outputs via Pydantic schemas to extract semantic evidence,
+field metadata, confidence scores, and summaries from extracted document texts.
+"""
+
 from typing import Literal
 
 from google import genai

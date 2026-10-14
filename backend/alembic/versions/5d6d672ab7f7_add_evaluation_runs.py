@@ -1,4 +1,5 @@
-"""add evaluation runs
+"""PropertyGuard Alembic Migration: Add Evaluation Runs
+Creates evaluation_runs table to track compliance engine audit executions.
 
 Revision ID: 5d6d672ab7f7
 Revises: e25ec3f37715

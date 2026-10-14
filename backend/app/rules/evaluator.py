@@ -1,3 +1,11 @@
+"""
+PropertyGuard Deterministic Rule Evaluator Engine
+-------------------------------------------------
+Executes deterministic compliance evaluation against property evidence contexts.
+Supports operators: DOCUMENT_EXISTS, DOCUMENT_NOT_EXPIRED, FIELD_EQUALS, FIELD_EXISTS,
+FIELD_IN, NUMERIC_COMPARISON, LOGICAL_AND, LOGICAL_OR, and LOGICAL_NOT.
+"""
+
 from typing import Any
 
 from app.rules.context import EvidenceContext

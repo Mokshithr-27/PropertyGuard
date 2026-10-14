@@ -1,3 +1,9 @@
+/**
+ * PropertyGuard Button UI Component
+ * Reusable button with support for variants (primary, secondary, outline, ghost),
+ * loading spinner states, sizes, and leading/trailing icons.
+ */
+
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import clsx from 'clsx';
 import styles from './Button.module.css';

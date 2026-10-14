@@ -1,3 +1,10 @@
+"""
+PropertyGuard AI Analysis Persistence Test Suite
+------------------------------------------------
+Tests database persistence of DocumentAnalysis records and linked DocumentEvidence
+items using simulated database sessions.
+"""
+
 from app.integrations.ai.base import (
     AIAnalysisResult,
     EvidenceItem,

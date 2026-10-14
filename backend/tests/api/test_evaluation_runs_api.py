@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Evaluation Runs API Test Suite
+--------------------------------------------------------
+Tests evaluation endpoints: evaluation triggering, run history retrieval, findings queries,
+finding status transitions, and role authorization policies.
+"""
+
 from app.main import app
 
 

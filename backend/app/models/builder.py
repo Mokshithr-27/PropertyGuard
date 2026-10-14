@@ -1,3 +1,11 @@
+"""
+PropertyGuard Builder Profile Models
+------------------------------------
+Defines BuilderProfile and BuilderVerification tables tracking developer/builder
+company details, license numbers, verification statuses (PENDING, VERIFIED, REJECTED),
+and audit trails.
+"""
+
 import uuid
 from datetime import datetime
 

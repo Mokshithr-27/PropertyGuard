@@ -1,4 +1,5 @@
-"""add rule evaluation metadata
+"""PropertyGuard Alembic Migration: Add Rule Evaluation Metadata
+Adds evaluation logic and operator metadata fields to rule_versions.
 
 Revision ID: e25ec3f37715
 Revises: a723c7e5cafd

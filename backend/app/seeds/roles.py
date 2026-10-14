@@ -1,3 +1,10 @@
+"""
+PropertyGuard Role Seeding Script
+---------------------------------
+Seeds initial RBAC system roles (BUYER, BUILDER, ADMIN, SUPER_ADMIN)
+into the database if they do not already exist.
+"""
+
 from sqlalchemy import select
 
 from app.core.database import SessionLocal

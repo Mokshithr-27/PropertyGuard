@@ -1,3 +1,10 @@
+"""
+PropertyGuard Builder Profile Business Service
+----------------------------------------------
+Manages retrieval and creation of BuilderProfile records linked to registered
+builder user accounts.
+"""
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

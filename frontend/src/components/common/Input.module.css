@@ -1,3 +1,8 @@
+/* ==============================================================================
+   PropertyGuard Input Component Stylesheet
+   Form field layouts, icon positions, focus rings, error borders, and helper text styles.
+   ============================================================================== */
+
 .wrapper {
   display: flex;
   flex-direction: column;
@@ -8,7 +13,7 @@
 .label {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #E2E8F0;
+  color: #344054;
   letter-spacing: 0.01em;
 }
 
@@ -22,10 +27,10 @@
 .input {
   width: 100%;
   padding: 0.65rem 1rem;
-  background-color: rgba(15, 23, 42, 0.7);
-  border: 1px solid var(--color-border);
+  background-color: #ffffff;
+  border: 1px solid #d5dce6;
   border-radius: var(--radius-lg);
-  color: var(--color-text-main);
+  color: #172033;
   font-size: 0.875rem;
   transition: all 0.2s ease;
   outline: none;
@@ -33,12 +38,12 @@
 
 .input:focus {
   border-color: var(--color-accent);
-  background-color: rgba(15, 23, 42, 0.95);
+  background-color: #ffffff;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .input::placeholder {
-  color: var(--color-text-dim);
+  color: #8a94a6;
 }
 
 .hasLeftIcon {
@@ -55,7 +60,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-dim);
+  color: #8a94a6;
   pointer-events: none;
 }
 
@@ -83,6 +88,15 @@
 
 .hintText {
   font-size: 0.75rem;
-  color: var(--color-text-dim);
+  color: #8a94a6;
   margin-top: 0.125rem;
+}
+
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #172033;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 5000s ease-in-out 0s;
 }

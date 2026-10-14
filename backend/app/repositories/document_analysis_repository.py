@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Analysis Repository
+------------------------------------------
+Handles database retrieval of the latest completed DocumentAnalysis records
+and associated DocumentEvidence collections for specific document versions.
+"""
+
 from uuid import UUID
 
 from sqlalchemy import select

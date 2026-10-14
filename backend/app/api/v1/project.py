@@ -1,3 +1,12 @@
+"""
+PropertyGuard Project & Compliance API Endpoints
+------------------------------------------------
+Provides endpoints for creating, listing, modifying, and soft-deleting projects;
+managing physical hierarchies (buildings, units); retrieving required document catalogs;
+and triggering compliance evaluations and querying findings/evaluation runs.
+"""
+
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,6 +29,7 @@ from app.schemas.project import (
     ProjectListItemResponse,
     ProjectResponse,
     ProjectStatusUpdate,
+    ProjectUpdate,
     ProjectVersionResponse,
     RequiredDocumentResponse,
     UnitCreate,
@@ -54,6 +64,7 @@ from app.services.project_service import (
     get_project,
     get_required_documents,
     submit_project_version_for_approval,
+    update_project,
 )
 
 from app.services.compliance_service import ComplianceService
@@ -99,7 +110,11 @@ def list_builder_projects_api(
 
     if "ADMIN" in user_roles or "SUPER_ADMIN" in user_roles or "BUYER" in user_roles:
         from app.models.project import Project
-        projects = db.query(Project).all()
+        projects = (
+            db.query(Project)
+            .filter(Project.deleted_at.is_(None))
+            .all()
+        )
     else:
         builder_profile = get_builder_profile(
             db,
@@ -128,7 +143,9 @@ def list_builder_projects_api(
                 updated_at=p.updated_at,
                 latest_version_number=latest_ver,
                 documents_count=len(docs),
-                compliance_score=85 if docs else None,
+                # A real compliance score is not implemented yet. Do not expose
+                # a fabricated score as if it were an assessment result.
+                compliance_score=None,
             )
         )
     return items
@@ -156,15 +173,16 @@ def create_project_api(
     )
 
     if builder_profile is None:
-        from app.models.builder import BuilderProfile
-        builder_profile = BuilderProfile(
-            user_id=current_user.id,
-            company_name=current_user.full_name or "Builder Organization",
-            verification_status="VERIFIED",
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Builder profile not found",
         )
-        db.add(builder_profile)
-        db.commit()
-        db.refresh(builder_profile)
+
+    if builder_profile.verification_status != "VERIFIED":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Builder must be VERIFIED to create projects",
+        )
 
     try:
         return create_project(
@@ -235,6 +253,54 @@ def list_project_findings(
 
 
 # ============================================================
+# UPDATE PROJECT DETAILS
+# ============================================================
+
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectResponse,
+)
+def update_project_api(
+    project_id: UUID,
+    payload: ProjectUpdate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_roles = {
+        ur.role.name for ur in current_user.roles if ur.role
+    } if hasattr(current_user, "roles") else set()
+
+    if not user_roles.intersection({"BUILDER", "ADMIN", "SUPER_ADMIN"}):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="BUILDER, ADMIN, or SUPER_ADMIN role required",
+        )
+
+    project = get_project(db, project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if not user_roles.intersection({"ADMIN", "SUPER_ADMIN"}):
+        builder_profile = get_builder_profile(db, current_user.id)
+        if builder_profile is None:
+            raise HTTPException(status_code=404, detail="Builder profile not found")
+        if project.builder_id != builder_profile.id:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this project")
+
+    try:
+        return update_project(
+            db,
+            project,
+            name=payload.name,
+            description=payload.description,
+            project_type=payload.project_type,
+            address=payload.address,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# ============================================================
 # SUSPEND / ACTIVATE / UPDATE PROJECT STATUS
 # ============================================================
 
@@ -257,7 +323,14 @@ def update_project_status_api(
     } if hasattr(current_user, "roles") else set()
 
     from app.models.project import Project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        db.query(Project)
+        .filter(
+            Project.id == project_id,
+            Project.deleted_at.is_(None),
+        )
+        .first()
+    )
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -305,7 +378,14 @@ def delete_project_api(
     } if hasattr(current_user, "roles") else set()
 
     from app.models.project import Project
-    project = db.query(Project).filter(Project.id == project_id).first()
+    project = (
+        db.query(Project)
+        .filter(
+            Project.id == project_id,
+            Project.deleted_at.is_(None),
+        )
+        .first()
+    )
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -317,14 +397,20 @@ def delete_project_api(
             raise HTTPException(status_code=403, detail="Not authorized to delete this project")
 
     proj_name = project.name
-    db.delete(project)
+    project.deleted_at = datetime.now(timezone.utc)
+    project.status = "INACTIVE"
+    project.updated_at = datetime.now(timezone.utc)
     db.commit()
+    db.refresh(project)
 
     return ProjectActionResponse(
         id=project_id,
         name=proj_name,
         status="DELETED",
-        message=f"Project '{proj_name}' and all statutory records were successfully deleted.",
+        message=(
+            f"Project '{proj_name}' was soft-deleted. "
+            "Historical versions, documents, findings, and evaluation records were preserved."
+        ),
     )
 
 
@@ -568,10 +654,32 @@ def get_project_api(
     ),
     db: Session = Depends(get_db),
 ):
-    project = get_project(
-        db,
-        project_id,
-    )
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+        if user_role.role
+    }
+
+    if not user_roles.intersection({"BUILDER", "ADMIN", "SUPER_ADMIN"}):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="BUILDER, ADMIN, or SUPER_ADMIN role required",
+        )
+
+    if user_roles.intersection({"ADMIN", "SUPER_ADMIN"}):
+        project = get_project(db, project_id)
+    else:
+        builder_profile = get_builder_profile(db, current_user.id)
+        if builder_profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Builder profile not found",
+            )
+        project = get_builder_project(
+            db,
+            project_id,
+            builder_profile.id,
+        )
 
     if project is None:
         raise HTTPException(

@@ -1,3 +1,10 @@
+"""
+PropertyGuard Project Service Test Suite
+----------------------------------------
+Tests builder ownership checks, project hierarchy modifications (adding buildings/units),
+and version draft status constraints.
+"""
+
 import uuid
 from types import SimpleNamespace
 

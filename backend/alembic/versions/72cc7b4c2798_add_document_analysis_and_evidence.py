@@ -1,4 +1,5 @@
-"""add document analysis and evidence
+"""PropertyGuard Alembic Migration: Add Document Analysis & Evidence
+Creates document_analyses and document_evidence tables for AI/OCR extraction.
 
 Revision ID: 72cc7b4c2798
 Revises: 55a170864b95

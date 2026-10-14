@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Analysis Service Test Suite
+--------------------------------------------------
+Validates creation of DocumentAnalysis models and extraction of evidence facts
+(dates, registration numbers, approvals) from extracted documents.
+"""
+
 from types import SimpleNamespace
 
 from app.services import document_analysis_service

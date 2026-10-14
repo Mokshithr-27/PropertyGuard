@@ -1,3 +1,10 @@
+"""
+PropertyGuard PaddleOCR Service Implementation
+----------------------------------------------
+Renders PDF pages to high-resolution pixmap images using PyMuPDF (fitz) and executes
+PaddleOCR text detection and recognition on scanned or image-based blueprint documents.
+"""
+
 from dataclasses import dataclass
 
 import pymupdf

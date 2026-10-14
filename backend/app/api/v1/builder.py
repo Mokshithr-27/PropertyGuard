@@ -1,3 +1,10 @@
+"""
+PropertyGuard Builder Profile API Endpoints
+-------------------------------------------
+Provides endpoints for authenticated builders to retrieve their existing builder
+profile (/profile) or register a new company profile.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

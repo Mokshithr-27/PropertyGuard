@@ -1,0 +1,43 @@
+{
+    "exit_code_by_key": {
+        "app.repositories.document_processing_job_repository.x_create_processing_job__mutmut_1": null,
+        "app.repositories.document_processing_job_repository.x_create_processing_job__mutmut_2": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_job__mutmut_1": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_job__mutmut_2": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_job__mutmut_3": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_job__mutmut_4": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_jobs_for_version__mutmut_1": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_jobs_for_version__mutmut_2": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_jobs_for_version__mutmut_3": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_jobs_for_version__mutmut_4": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_jobs_for_version__mutmut_5": null,
+        "app.repositories.document_processing_job_repository.x_get_processing_jobs_for_version__mutmut_6": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_1": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_2": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_3": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_4": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_5": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_6": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_7": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_8": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_9": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_10": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_11": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_12": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_13": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_14": null,
+        "app.repositories.document_processing_job_repository.x_get_active_processing_job__mutmut_15": null,
+        "app.repositories.document_processing_job_repository.x_update_processing_job__mutmut_1": null,
+        "app.repositories.document_processing_job_repository.x_update_processing_job__mutmut_2": null
+    },
+    "hash_by_function_name": {
+        "x_create_processing_job": "8c216052e72a",
+        "x_get_processing_job": "5d4f35dddc01",
+        "x_get_processing_jobs_for_version": "d217a5bccd16",
+        "x_get_active_processing_job": "2fca7738b4af",
+        "x_update_processing_job": "f50c1c46db83"
+    },
+    "type_check_error_by_key": {},
+    "durations_by_key": {},
+    "estimated_durations_by_key": {}
+}

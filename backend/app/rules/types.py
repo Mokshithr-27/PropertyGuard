@@ -1,3 +1,10 @@
+"""
+PropertyGuard Rule Engine Types & Enums
+---------------------------------------
+Defines core enumeration types for evaluation outcomes (PASS, FAIL, NEEDS_REVIEW,
+NOT_APPLICABLE) and supported logical/assertion operators.
+"""
+
 from enum import StrEnum
 
 

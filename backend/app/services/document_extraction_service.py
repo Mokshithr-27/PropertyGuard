@@ -1,3 +1,9 @@
+"""
+PropertyGuard Multi-Format Document Extraction Service
+------------------------------------------------------
+Extracts plain raw text from text-based PDF and DOCX files using PyPDF and python-docx.
+"""
+
 from io import BytesIO
 from pathlib import Path
 

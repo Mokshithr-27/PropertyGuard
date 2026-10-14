@@ -1,3 +1,10 @@
+"""
+PropertyGuard Storage Integration Test Script
+----------------------------------------------
+A standalone verification utility that tests upload, existence verification,
+and download operations against MinIO / local fallback object storage.
+"""
+
 from app.integrations.storage import (
     download_bytes,
     object_exists,

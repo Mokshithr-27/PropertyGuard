@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Processing Job Worker Service
+----------------------------------------------------
+Executes document text extraction jobs for a specified job ID, downloading file bytes
+from storage, extracting text, updating job status, and capturing error logs.
+"""
+
 from sqlalchemy.orm import Session
 
 from app.integrations.storage import download_bytes

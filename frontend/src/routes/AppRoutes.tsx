@@ -1,3 +1,9 @@
+/**
+ * PropertyGuard Route Definitions & Navigation Map
+ * Configures application client-side routes (/login, /register, /dashboard, etc.)
+ * and provides the ProtectedRoute authentication gate for dashboard access.
+ */
+
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LandingPage } from '../pages/LandingPage';
 import { LoginPage } from '../pages/auth/LoginPage';

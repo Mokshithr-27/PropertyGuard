@@ -1,0 +1,38 @@
+"""
+PropertyGuard Rule Evaluation Context
+-------------------------------------
+Defines immutable evaluation context models (EvidenceContext, DocumentEvidence)
+aggregating project metadata, uploaded documents, extracted fields, and evaluation timestamps.
+"""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+
+from mutmut.mutation.trampoline import wrap_in_trampoline as _mutmut_mutated, MutantDict
+
+
+@dataclass(frozen=True)
+class DocumentEvidence:
+    document_id: UUID
+    document_type: str
+    title: str
+    status: str
+    visibility: str
+    expiry_date: datetime | None
+    latest_version_number: int | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceContext:
+    project_id: UUID
+
+    documents: tuple[DocumentEvidence, ...] = ()
+
+    fields: dict[str, Any] = field(default_factory=dict)
+
+    property_type: str | None = None
+
+    evaluation_time: datetime | None = None

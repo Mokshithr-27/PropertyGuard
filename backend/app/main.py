@@ -1,3 +1,11 @@
+"""
+PropertyGuard Main Application Entrypoint
+------------------------------------------
+Initializes the FastAPI application, configures CORS middleware for frontend
+communication, registers API routers (auth, documents, builder, admin, project),
+and provides the baseline health check endpoint.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,6 +14,7 @@ from app.api.v1.builder import router as builder_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.project import router as project_router
+from app.api.v1.rera import router as rera_router
 
 
 app = FastAPI(
@@ -45,6 +54,11 @@ app.include_router(
 
 app.include_router(
     project_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    rera_router,
     prefix="/api/v1",
 )
 

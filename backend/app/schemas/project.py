@@ -1,3 +1,10 @@
+"""
+PropertyGuard Real Estate Project Hierarchy Schemas
+---------------------------------------------------
+Defines Pydantic models for project creation, project updates, project details,
+version tracking, and building/unit structure representations.
+"""
+
 from datetime import datetime
 from uuid import UUID
 
@@ -118,6 +125,13 @@ class ProjectListItemResponse(BaseModel):
     compliance_score: int | None = None
 
 
+class ProjectUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    project_type: str
+    address: str | None = None
+
+
 class ProjectStatusUpdate(BaseModel):
     status: str = Field(pattern="^(DRAFT|ACTIVE|INACTIVE|SUSPENDED)$")
     reason: str | None = None
@@ -128,4 +142,4 @@ class ProjectActionResponse(BaseModel):
     name: str
     status: str
     message: str
-
+

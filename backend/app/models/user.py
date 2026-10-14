@@ -1,3 +1,10 @@
+"""
+PropertyGuard User Account Model
+---------------------------------
+Defines the User entity with authentication credentials, email verification flags,
+active status, timestamps, and relationships to assigned roles and builder profiles.
+"""
+
 import uuid
 from datetime import datetime
 

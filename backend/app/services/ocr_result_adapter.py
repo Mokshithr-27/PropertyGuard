@@ -1,3 +1,10 @@
+"""
+PropertyGuard OCR Result Adapter Service
+----------------------------------------
+Transforms dictionary payloads produced by the PaddleOCR Celery worker
+into standard ExtractedDocument and ExtractedPage domain models for uniform AI analysis.
+"""
+
 from app.services.document_text_extraction_service import (
     ExtractedDocument,
     ExtractedPage,

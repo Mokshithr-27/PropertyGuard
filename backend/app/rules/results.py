@@ -1,3 +1,10 @@
+"""
+PropertyGuard Rule Evaluation Result Dataclass
+----------------------------------------------
+Defines the EvaluationResult dataclass capturing evaluation outcomes (PASS, FAIL,
+NEEDS_REVIEW, NOT_APPLICABLE), human-readable explanations, and evidence maps.
+"""
+
 from dataclasses import dataclass
 from typing import Any
 

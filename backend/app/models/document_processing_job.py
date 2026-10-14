@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Processing Job Model
+-------------------------------------------
+Tracks asynchronous background parsing tasks for document versions, recording
+job status (PENDING, PROCESSING, COMPLETED, FAILED), Celery task IDs, and error messages.
+"""
+
 import uuid
 from datetime import datetime
 

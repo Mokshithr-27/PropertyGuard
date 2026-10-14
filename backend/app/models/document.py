@@ -1,3 +1,11 @@
+"""
+PropertyGuard Document & Version Models
+---------------------------------------
+Defines Document and DocumentVersion entities representing uploaded property files,
+architectural plans, titles, and permits with versioning, SHA-256 hashes, file types,
+and MinIO storage locations.
+"""
+
 import uuid
 from datetime import datetime
 

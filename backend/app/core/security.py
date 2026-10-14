@@ -1,3 +1,10 @@
+"""
+PropertyGuard Password Security & Hashing
+-----------------------------------------
+Provides password hashing and verification using secure modern password hashing
+schemes (pwdlib Argon2 / Bcrypt algorithms).
+"""
+
 from pwdlib import PasswordHash
 
 

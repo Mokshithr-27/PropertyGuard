@@ -1,3 +1,10 @@
+"""
+PropertyGuard Main Celery Application
+-------------------------------------
+Initializes the primary Celery worker instance configured with Redis broker
+and task result backend, loading general worker tasks and document pipeline tasks.
+"""
+
 from celery import Celery
 
 from app.core.config import REDIS_URL

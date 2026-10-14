@@ -1,3 +1,10 @@
+"""
+PropertyGuard Alembic Migration Runtime Environment
+---------------------------------------------------
+Configures SQLAlchemy metadata binding and migration contexts for offline and online
+database schema migrations against PostgreSQL.
+"""
+
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -28,6 +35,7 @@ from app.models import (
     Discrepancy,
     EvaluationRun,
     DocumentProcessingJob,
+    ReraVerification,
 )
 
 # this is the Alembic Config object, which provides

@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Serialization Schemas
+----------------------------------------------
+Defines Pydantic models for serializing compliance rules, version definitions,
+evaluation results, findings, and project compliance summaries.
+"""
+
 from datetime import datetime
 from uuid import UUID
 

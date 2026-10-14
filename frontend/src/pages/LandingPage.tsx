@@ -1,3 +1,9 @@
+/**
+ * PropertyGuard Public Landing Page Component
+ * Showcases the platform value proposition, architecture trust boundaries,
+ * multi-tier compliance breakdown, deterministic evaluation overview, and call-to-actions.
+ */
+
 import { useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -247,7 +253,7 @@ export function LandingPage() {
 
   return (
     <div className={styles.page}>
-      <Navbar onNavigateSection={scrollToSection} />
+      <Navbar />
 
       {/* Hero Section */}
       <section className={styles.heroSection}>

@@ -1,0 +1,122 @@
+"""Conservative adapter for the public Telangana RERA search portal.
+
+The portal may change, block automated access, or require CAPTCHA. This adapter
+never equates an HTTP 200 response with verification: it only reports VERIFIED
+when the result page provides an unambiguous registration-number match. Otherwise
+it records a review/unavailable outcome and points the user to the official site.
+"""
+from __future__ import annotations
+from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
+from html.parser import HTMLParser
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+import re
+
+OFFICIAL_SEARCH_URL = "https://rerait.telangana.gov.in/searchlist/search"
+OFFICIAL_HOME_URL = "https://rera.telangana.gov.in/"
+
+class _TableParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.rows: list[list[str]] = []
+        self._in_table = False
+        self._in_row = False
+        self._in_cell = False
+        self._cell: list[str] = []
+        self._row: list[str] = []
+        self._text: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() == "table": self._in_table = True
+        if self._in_table and tag.lower() == "tr": self._in_row, self._row = True, []
+        if self._in_row and tag.lower() in ("td", "th"): self._in_cell, self._cell = True, []
+
+    def handle_data(self, data):
+        self._text.append(data)
+        if self._in_cell: self._cell.append(data)
+
+    def handle_endtag(self, tag):
+        if self._in_cell and tag.lower() in ("td", "th"):
+            self._row.append(" ".join(" ".join(self._cell).split()))
+            self._in_cell = False
+        if self._in_row and tag.lower() == "tr":
+            if any(self._row): self.rows.append(self._row)
+            self._in_row = False
+        if tag.lower() == "table": self._in_table = False
+
+@dataclass
+class ReraCheckResult:
+    status: str
+    source_url: str
+    source_title: str
+    registration_number: str
+    checked_at: str
+    message: str
+    matched_project_name: str | None = None
+    matched_promoter_name: str | None = None
+    evidence: dict | None = None
+
+
+def _normalise(value: str | None) -> str:
+    return re.sub(r"[^A-Z0-9]", "", (value or "").upper())
+
+
+def verify_telangana_rera(registration_number: str, expected_project_name: str | None = None,
+                          expected_promoter_name: str | None = None, timeout: float = 10.0) -> ReraCheckResult:
+    number = (registration_number or "").strip()
+    now = datetime.now(timezone.utc).isoformat()
+    if not number or len(number) > 150 or not re.fullmatch(r"[A-Za-z0-9./_-]+", number):
+        return ReraCheckResult("INVALID_INPUT", OFFICIAL_HOME_URL, "Telangana RERA", number, now,
+                               "Provide a valid registration-number string before checking the official portal.")
+    url = OFFICIAL_SEARCH_URL + "?" + urlencode({"CertficateNo": number})
+    req = Request(url, headers={"User-Agent": "PropertyGuardPrototype/1.0 (official-source verification; contact project admin)"})
+    try:
+        with urlopen(req, timeout=timeout) as response:
+            html = response.read(2_000_000).decode("utf-8", errors="replace")
+    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        return ReraCheckResult("SOURCE_UNAVAILABLE", url, "Telangana RERA", number, now,
+                               f"Official portal could not be reliably queried ({type(exc).__name__}). No verification conclusion was made.")
+
+    parser = _TableParser()
+    parser.feed(html)
+    number_norm = _normalise(number)
+    candidate_rows = []
+    for row in parser.rows:
+        row_text = " | ".join(row)
+        if number_norm and number_norm in _normalise(row_text):
+            candidate_rows.append(row)
+
+    if len(candidate_rows) == 1:
+        row = candidate_rows[0]
+        row_text = " | ".join(row)
+        project_match = None
+        promoter_match = None
+        if expected_project_name:
+            project_match = _normalise(expected_project_name) in _normalise(row_text)
+        if expected_promoter_name:
+            promoter_match = _normalise(expected_promoter_name) in _normalise(row_text)
+        if project_match is False or promoter_match is False:
+            return ReraCheckResult("MISMATCH", url, "Telangana RERA", number, now,
+                "The official result row appears inconsistent with the supplied project/promoter details. Admin review is required.",
+                evidence={"matched_row": row, "project_name_match": project_match, "promoter_name_match": promoter_match})
+        return ReraCheckResult("VERIFIED", url, "Telangana RERA", number, now,
+            "The official portal returned a result row containing the exact normalized registration number. Confirm status and details in the official record before relying on this result.",
+            matched_project_name=row[1] if len(row) > 1 else None,
+            matched_promoter_name=row[2] if len(row) > 2 else None,
+            evidence={"matched_row": row, "project_name_match": project_match, "promoter_name_match": promoter_match})
+
+    if len(candidate_rows) > 1:
+        return ReraCheckResult("NEEDS_REVIEW", url, "Telangana RERA", number, now,
+            "Multiple candidate rows were returned; automatic matching is ambiguous.", evidence={"candidate_rows": candidate_rows[:10]})
+
+    body_text = " ".join(" ".join(parser._text).split()).lower()
+    if "captcha" in body_text or "enter the text below" in body_text or "search project details" in body_text:
+        status = "MANUAL_REVIEW_REQUIRED"
+        message = "The public portal response did not expose an unambiguous registration row (the portal may require interactive search/CAPTCHA). Open the official source and confirm manually."
+    else:
+        status = "NEEDS_REVIEW"
+        message = "No unambiguous matching registration row was found. This is not proof that the registration is invalid; verify manually on the official portal."
+    return ReraCheckResult(status, url, "Telangana RERA", number, now, message,
+                           evidence={"response_excerpt": body_text[:1200]})

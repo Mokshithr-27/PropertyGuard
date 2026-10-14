@@ -1,0 +1,35 @@
+"""
+PropertyGuard Main Celery Application
+-------------------------------------
+Initializes the primary Celery worker instance configured with Redis broker
+and task result backend, loading general worker tasks and document pipeline tasks.
+"""
+
+from celery import Celery
+
+from app.core.config import REDIS_URL
+
+
+celery_app = Celery(
+    "propertyguard",
+    broker=REDIS_URL,
+    backend=REDIS_URL,
+)
+
+celery_app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+)
+
+celery_app.autodiscover_tasks(["app.workers"])
+
+celery_app.conf.imports = (
+    "app.workers.tasks",
+    "app.workers.document_tasks",
+)
+
+
+from mutmut.mutation.trampoline import wrap_in_trampoline as _mutmut_mutated, MutantDict

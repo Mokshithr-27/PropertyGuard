@@ -1,3 +1,10 @@
+"""
+PropertyGuard Real Estate Project Management Service
+----------------------------------------------------
+Coordinates project creation, version incrementing, modification, soft deletion,
+and physical hierarchy management (buildings, units) with builder ownership checks.
+"""
+
 from uuid import UUID
 
 from sqlalchemy import select
@@ -80,13 +87,38 @@ def create_project(
     return project
 
 
+def update_project(
+    db: Session,
+    project: Project,
+    *,
+    name: str,
+    description: str | None,
+    project_type: str,
+    address: str | None,
+) -> Project:
+    if project.deleted_at is not None:
+        raise ValueError("Project has been deleted")
+
+    project.name = name
+    project.description = description
+    project.project_type = project_type
+    project.address = address
+
+    from datetime import datetime, timezone
+    project.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 def get_project(
     db: Session,
     project_id: UUID,
 ) -> Project | None:
     return db.scalar(
         select(Project).where(
-            Project.id == project_id
+            Project.id == project_id,
+            Project.deleted_at.is_(None),
         )
     )
 
@@ -100,6 +132,7 @@ def get_builder_project(
         select(Project).where(
             Project.id == project_id,
             Project.builder_id == builder_profile_id,
+            Project.deleted_at.is_(None),
         )
     )
 
@@ -111,7 +144,10 @@ def get_builder_projects(
     return list(
         db.scalars(
             select(Project)
-            .where(Project.builder_id == builder_profile_id)
+            .where(
+                Project.builder_id == builder_profile_id,
+                Project.deleted_at.is_(None),
+            )
             .order_by(Project.created_at.desc())
         ).all()
     )
@@ -300,6 +336,7 @@ def add_building(
         select(Project).where(
             Project.id == version.project_id,
             Project.builder_id == builder_profile_id,
+            Project.deleted_at.is_(None),
         )
     )
 
@@ -397,6 +434,7 @@ def add_unit(
         select(Project).where(
             Project.id == version.project_id,
             Project.builder_id == builder_profile_id,
+            Project.deleted_at.is_(None),
         )
     )
 

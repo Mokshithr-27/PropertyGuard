@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Management Service
+-----------------------------------------
+Coordinates document upload, SHA-256 integrity hashing, incremental version numbering,
+MinIO object storage persistence, version metadata updates, and soft deletion.
+"""
+
 import hashlib
 import uuid
 

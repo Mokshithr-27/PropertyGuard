@@ -1,3 +1,10 @@
+"""
+PropertyGuard OCR Celery Tasks
+------------------------------
+Defines distributed background tasks for optical character recognition, including
+health checks and asynchronous document processing using PaddleOCR and MinIO download.
+"""
+
 from celery import Celery
 
 from app.integrations.storage import download_bytes
@@ -36,6 +43,14 @@ def ocr_process_document(
 
     ocr_service = PaddleOCRService()
     result = ocr_service.process_pdf(pdf_bytes)
+
+    # Never write raw OCR text to worker logs: property documents may contain
+    # personal, financial, or legally sensitive information. Log metadata only.
+    print(
+        f"PropertyGuard OCR completed: pages={result.page_count}, "
+        f"text_length={len(result.full_text or '')}",
+        flush=True,
+    )
 
     ocr_result = {
         "storage_key": storage_key,

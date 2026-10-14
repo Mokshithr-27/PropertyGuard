@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Processing Job Repository
+------------------------------------------------
+Provides database CRUD operations for DocumentProcessingJob entities,
+tracking execution states and worker tasks.
+"""
+
 from uuid import UUID
 
 from sqlalchemy import select

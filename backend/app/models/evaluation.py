@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Evaluation Run Model
+---------------------------------------------
+Represents an individual execution of the regulatory compliance engine against
+a project version, recording run parameters, triggers, statuses, and timestamps.
+"""
+
 import uuid
 from datetime import datetime
 

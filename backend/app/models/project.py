@@ -1,3 +1,10 @@
+"""
+PropertyGuard Real Estate Project Hierarchy Models
+--------------------------------------------------
+Defines Project, ProjectVersion, Building, and Unit tables modeling real estate
+developments, revision histories, physical structures, units, and soft deletion.
+"""
+
 import uuid
 from datetime import datetime
 
@@ -68,6 +75,12 @@ class Project(Base):
         nullable=False,
         default="DRAFT",
 
+    )
+
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

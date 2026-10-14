@@ -1,3 +1,10 @@
+"""
+PropertyGuard User Authentication Service
+-----------------------------------------
+Handles user registration, password verification, role association (BUYER, BUILDER),
+profile creation, and JWT access token generation.
+"""
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -57,7 +64,9 @@ def register_user(
                 BuilderProfile(
                     user_id=user.id,
                     company_name=full_name or "Builder Enterprise",
-                    verification_status="VERIFIED",
+                    # Builder verification is an administrative trust boundary.
+                    # Newly registered builders must wait for admin verification.
+                    verification_status="PENDING",
                 )
             )
 

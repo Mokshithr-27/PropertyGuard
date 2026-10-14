@@ -1,0 +1,15 @@
+{
+    "exit_code_by_key": {
+        "app.core.db_check.x_test_database_connection__mutmut_1": null,
+        "app.core.db_check.x_test_database_connection__mutmut_2": null,
+        "app.core.db_check.x_test_database_connection__mutmut_3": null,
+        "app.core.db_check.x_test_database_connection__mutmut_4": null,
+        "app.core.db_check.x_test_database_connection__mutmut_5": null
+    },
+    "hash_by_function_name": {
+        "x_test_database_connection": "efdfb3c916d7"
+    },
+    "type_check_error_by_key": {},
+    "durations_by_key": {},
+    "estimated_durations_by_key": {}
+}

@@ -1,3 +1,8 @@
+/* ==============================================================================
+   PropertyGuard Card Component Stylesheet
+   Styles and elevation shadows for default, glass, interactive, and subtle card surfaces.
+   ============================================================================== */
+
 .card {
   border-radius: var(--radius-xl);
   overflow: hidden;

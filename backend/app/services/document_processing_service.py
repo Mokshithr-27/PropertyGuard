@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Processing Lifecycle Service
+---------------------------------------------------
+Manages processing job states (QUEUED, PROCESSING, COMPLETED, FAILED), updating
+DocumentVersion processing statuses and recording job run details.
+"""
+
 from datetime import datetime, timezone
 from uuid import UUID
 

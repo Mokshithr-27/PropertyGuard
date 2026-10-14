@@ -1,3 +1,11 @@
+"""
+PropertyGuard Compliance Business Service
+-----------------------------------------
+Orchestrates compliance evaluation workflows: builds EvidenceContext from project
+documents and parameters, filters applicable rules, evaluates dependencies, invokes
+the RuleEvaluator engine, records EvaluationRun and ComplianceResult records, and manages Findings.
+"""
+
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -167,18 +175,22 @@ class ComplianceService:
 
             active_rules = get_active_rules(db)
 
+            # Resolve active versions before evaluation so dependencies can be
+            # evaluated first regardless of rule_code/database ordering.
+            active_versions = {}
             for rule in active_rules:
-                rule_version = get_active_rule_version(
-                    db,
-                    rule.id,
-                )
-
+                rule_version = get_active_rule_version(db, rule.id)
                 if rule_version is None:
                     raise ValueError(
-                        f"No active version found for rule "
-                        f"'{rule.rule_code}'"
+                        f"No active version found for rule '{rule.rule_code}'"
                     )
+                active_versions[rule_version.id] = (rule, rule_version)
 
+            ordered_versions = self._order_versions_by_dependencies(
+                db, active_versions
+            )
+
+            for rule_version in ordered_versions:
                 self.evaluate_rule(
                     db=db,
                     project_id=project_id,
@@ -200,6 +212,43 @@ class ComplianceService:
             )
             raise
 
+
+    @staticmethod
+    def _order_versions_by_dependencies(db: Session, active_versions: dict) -> list:
+        """Return active rule versions in dependency-first order.
+
+        Dependencies that are not active in this evaluation are intentionally
+        not silently substituted; evaluate_rule will mark them NEEDS_REVIEW.
+        Cycles are rejected instead of producing order-dependent results.
+        """
+        versions = {version_id: pair[1] for version_id, pair in active_versions.items()}
+        dependencies = {
+            version_id: [
+                item.depends_on_rule_version_id
+                for item in get_rule_dependencies(db, version_id)
+                if item.depends_on_rule_version_id in versions
+            ]
+            for version_id in versions
+        }
+        state: dict = {}
+        ordered = []
+
+        def visit(version_id):
+            status = state.get(version_id, 0)
+            if status == 1:
+                raise ValueError("Cycle detected in compliance rule dependencies")
+            if status == 2:
+                return
+            state[version_id] = 1
+            for dependency_id in dependencies[version_id]:
+                visit(dependency_id)
+            state[version_id] = 2
+            ordered.append(versions[version_id])
+
+        # Preserve the existing stable rule order when no dependency dictates otherwise.
+        for version_id in versions:
+            visit(version_id)
+        return ordered
 
     def complete_evaluation_run(
         self,
@@ -315,6 +364,14 @@ class ComplianceService:
                 value = evidence.field_value.strip()
 
                 if not value:
+                    continue
+
+                # Keep uncertain/unsupported AI output out of compliance facts.
+                # It remains visible for human review through the analysis API.
+                confidence = evidence.confidence
+                if confidence is None or confidence < 0.75:
+                    continue
+                if not evidence.evidence_text or not evidence.evidence_text.strip():
                     continue
 
                 semantic_values.setdefault(

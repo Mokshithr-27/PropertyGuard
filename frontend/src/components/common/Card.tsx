@@ -1,3 +1,9 @@
+/**
+ * PropertyGuard Card UI Component Family
+ * Composable container components: Card, CardHeader, CardTitle, CardDescription,
+ * CardContent, and CardFooter with subtle glassmorphism and light styling.
+ */
+
 import type { ReactNode, CSSProperties } from 'react';
 import clsx from 'clsx';
 import styles from './Card.module.css';

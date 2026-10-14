@@ -1,4 +1,5 @@
-"""complete compliance domain
+"""PropertyGuard Alembic Migration: Complete Compliance Domain
+Creates rule_applicability, rule_dependencies, compliance_results, findings, and discrepancies tables.
 
 Revision ID: a723c7e5cafd
 Revises: b77bd630b8da

@@ -1,3 +1,8 @@
+/* ==============================================================================
+   PropertyGuard Button Component Stylesheet
+   Styles, sizes, hover transitions, and spinner keyframes for interactive buttons.
+   ============================================================================== */
+
 .button {
   display: inline-flex;
   align-items: center;

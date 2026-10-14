@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Repository
+------------------------------------
+Provides low-level database query and persistence methods for compliance rules,
+rule versions, applicability queries, evaluation runs, results, findings, and discrepancies.
+"""
+
 from uuid import UUID
 
 from sqlalchemy import select

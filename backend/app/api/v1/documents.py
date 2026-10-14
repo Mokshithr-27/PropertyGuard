@@ -1,3 +1,11 @@
+"""
+PropertyGuard Document Management API Endpoints
+------------------------------------------------
+Provides endpoints for validating document uploads, uploading new documents and versions,
+downloading raw files, triggering asynchronous processing, polling job status,
+and retrieving AI/OCR analysis and evidence records.
+"""
+
 from uuid import UUID
 
 from fastapi import (
@@ -12,7 +20,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db, require_role
+from app.api.dependencies import get_current_user, get_db, require_role
 from app.models.user import User
 from app.schemas.document import (
     DocumentDetailResponse,
@@ -22,6 +30,7 @@ from app.schemas.document import (
     DocumentValidationResponse,
     DocumentVersionResponse,
 )
+from app.schemas.document_analysis import DocumentAnalysisResponse
 from app.services.document_service import (
     create_document,
     create_document_version,
@@ -35,6 +44,11 @@ from app.services.document_processing_service import (
 
 
 from app.services.project_service import get_builder_project
+from app.repositories.document_analysis_repository import (
+    get_document_analysis_evidence,
+    get_latest_document_analysis,
+)
+
 from app.repositories.document_repository import (
     get_document,
     get_document_versions,
@@ -164,38 +178,40 @@ async def validate_document_file(
 )
 def get_documents_for_project(
     project_id: UUID,
-    current_user: User = Depends(require_role("BUILDER")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services.project_service import get_builder_profile
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+        if user_role.role
+    }
 
-    builder_profile = get_builder_profile(
-        db,
-        current_user.id,
-    )
+    if {"ADMIN", "SUPER_ADMIN"} & user_roles:
+        documents = get_project_documents(db, project_id)
+    elif "BUILDER" in user_roles:
+        from app.services.project_service import get_builder_profile
+        builder_profile = get_builder_profile(db, current_user.id)
+        if builder_profile is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Builder profile not found")
+        project = get_builder_project(db, project_id, builder_profile.id)
+        if project is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        documents = get_project_documents(db, project_id)
+    elif "BUYER" in user_roles:
+        from app.services.project_service import get_project
+        project = get_project(db, project_id)
+        if project is None or project.deleted_at is not None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        documents = [
+            document
+            for document in get_project_documents(db, project_id)
+            if document.visibility in {"BUYER_VISIBLE", "PUBLIC_SUMMARY"}
+        ]
+    else:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
-    if builder_profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Builder profile not found",
-        )
-
-    project = get_builder_project(
-        db,
-        project_id,
-        builder_profile.id,
-    )
-
-    if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    return get_project_documents(
-        db,
-        project_id,
-    )
+    return documents
 
 @router.get(
     "/{document_id}",
@@ -203,50 +219,34 @@ def get_documents_for_project(
 )
 def get_document_detail(
     document_id: UUID,
-    current_user: User = Depends(require_role("BUILDER")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.services.project_service import get_builder_profile
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+        if user_role.role
+    }
 
-    builder_profile = get_builder_profile(
-        db,
-        current_user.id,
-    )
-
-    if builder_profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Builder profile not found",
-        )
-
-    document = get_document(
-        db,
-        document_id,
-    )
-
+    document = get_document(db, document_id)
     if document is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    project = get_builder_project(
-        db,
-        document.project_id,
-        builder_profile.id,
-    )
+    if {"ADMIN", "SUPER_ADMIN"} & user_roles:
+        allowed = True
+    elif "BUILDER" in user_roles:
+        from app.services.project_service import get_builder_profile
+        builder_profile = get_builder_profile(db, current_user.id)
+        allowed = bool(builder_profile and get_builder_project(db, document.project_id, builder_profile.id))
+    elif "BUYER" in user_roles:
+        allowed = document.visibility in {"BUYER_VISIBLE", "PUBLIC_SUMMARY"}
+    else:
+        allowed = False
 
-    if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
-        )
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
-    versions = get_document_versions(
-        db,
-        document.id,
-    )
-
+    versions = get_document_versions(db, document.id)
     return DocumentDetailResponse(
         **{
             "id": document.id,
@@ -266,80 +266,129 @@ def get_document_detail(
     )
 
 @router.get(
-    "/{document_id}/download",
+    "/{document_id}/analysis",
+    response_model=DocumentAnalysisResponse,
 )
-def download_document(
+def get_document_analysis(
     document_id: UUID,
-    current_user: User = Depends(require_role("BUILDER")),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Return completed document analysis. Builders/admins can inspect owned/admin documents; buyers can inspect buyer-visible documents."""
     from app.services.project_service import get_builder_profile
 
-    builder_profile = get_builder_profile(
-        db,
-        current_user.id,
-    )
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+        if user_role.role
+    }
 
-    if builder_profile is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Builder profile not found",
-        )
-
-    document = get_document(
-        db,
-        document_id,
-    )
-
+    document = get_document(db, document_id)
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         )
 
-    project = get_builder_project(
-        db,
-        document.project_id,
-        builder_profile.id,
-    )
+    if {"ADMIN", "SUPER_ADMIN"} & user_roles:
+        allowed = True
+    elif "BUILDER" in user_roles:
+        builder_profile = get_builder_profile(db, current_user.id)
+        allowed = bool(builder_profile and get_builder_project(db, document.project_id, builder_profile.id))
+    elif "BUYER" in user_roles:
+        allowed = document.visibility in {"BUYER_VISIBLE", "PUBLIC_SUMMARY"}
+    else:
+        allowed = False
 
-    if project is None:
+    if not allowed:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found",
         )
 
-    version = get_latest_version(
-        db,
-        document.id,
-    )
-
+    version = get_latest_version(db, document.id)
     if version is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document version not found",
         )
 
-    try:
-        data = download_bytes(
-            version.storage_key,
-        )
-    except Exception:
+    analysis = get_latest_document_analysis(db, version.id)
+    if analysis is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document file not found",
+            detail="No completed analysis is available yet",
         )
+
+    evidence = get_document_analysis_evidence(db, analysis.id)
+    if "BUYER" in user_roles and not (user_roles & {"ADMIN", "SUPER_ADMIN"}):
+        evidence = [item for item in evidence if item.field_name != "page_text"]
+
+    return DocumentAnalysisResponse(
+        **{
+            "id": analysis.id,
+            "document_version_id": analysis.document_version_id,
+            "status": analysis.status,
+            "provider": analysis.provider,
+            "model_name": analysis.model_name,
+            "detected_document_type": analysis.detected_document_type,
+            "summary": analysis.summary,
+            "structured_data": analysis.structured_data,
+            "overall_confidence": analysis.overall_confidence,
+            "error_message": analysis.error_message,
+            "created_at": analysis.created_at,
+            "completed_at": analysis.completed_at,
+            "evidence": evidence,
+        }
+    )
+
+
+@router.get(
+    "/{document_id}/download",
+)
+def download_document(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user_roles = {
+        user_role.role.name
+        for user_role in current_user.roles
+        if user_role.role
+    }
+
+    document = get_document(db, document_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    if {"ADMIN", "SUPER_ADMIN"} & user_roles:
+        allowed = True
+    elif "BUILDER" in user_roles:
+        from app.services.project_service import get_builder_profile
+        builder_profile = get_builder_profile(db, current_user.id)
+        allowed = bool(builder_profile and get_builder_project(db, document.project_id, builder_profile.id))
+    elif "BUYER" in user_roles:
+        allowed = document.visibility in {"BUYER_VISIBLE", "PUBLIC_SUMMARY"}
+    else:
+        allowed = False
+
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    version = get_latest_version(db, document.id)
+    if version is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document version not found")
+
+    try:
+        data = download_bytes(version.storage_key)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found")
 
     return Response(
         content=data,
         media_type=version.mime_type,
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="{version.file_name}"'
-            )
-        },
+        headers={"Content-Disposition": f'attachment; filename="{version.file_name}"'},
     )
-
 
 @router.post(
     "/{document_id}/versions",

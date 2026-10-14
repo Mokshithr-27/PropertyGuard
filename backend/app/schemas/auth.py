@@ -1,3 +1,10 @@
+"""
+PropertyGuard Authentication Schemas
+------------------------------------
+Defines Pydantic models for user registration, login credentials, JWT token responses,
+and current user profile representations with role lists.
+"""
+
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field

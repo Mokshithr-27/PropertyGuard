@@ -1,3 +1,11 @@
+"""
+PropertyGuard Compliance Domain Models
+---------------------------------------
+Defines the core regulatory data model: ComplianceRule, RuleVersion, RuleApplicability,
+RuleDependency, ComplianceResult, Finding, and Discrepancy. Models support versioned
+rule logic, jurisdictions, severe findings, and evaluation histories.
+"""
+
 import uuid
 from datetime import datetime
 

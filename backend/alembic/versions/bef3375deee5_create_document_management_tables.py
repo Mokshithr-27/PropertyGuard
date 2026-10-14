@@ -1,4 +1,5 @@
-"""create document management tables
+"""PropertyGuard Alembic Migration: Create Document Management Tables
+Creates documents and document_versions tables for file tracking and storage paths.
 
 Revision ID: bef3375deee5
 Revises: f4389b6f5a25

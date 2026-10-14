@@ -1,0 +1,24 @@
+{
+    "exit_code_by_key": {
+        "app.seeds.roles.x_seed_roles__mutmut_1": null,
+        "app.seeds.roles.x_seed_roles__mutmut_2": null,
+        "app.seeds.roles.x_seed_roles__mutmut_3": null,
+        "app.seeds.roles.x_seed_roles__mutmut_4": null,
+        "app.seeds.roles.x_seed_roles__mutmut_5": null,
+        "app.seeds.roles.x_seed_roles__mutmut_6": null,
+        "app.seeds.roles.x_seed_roles__mutmut_7": null,
+        "app.seeds.roles.x_seed_roles__mutmut_8": null,
+        "app.seeds.roles.x_seed_roles__mutmut_9": null,
+        "app.seeds.roles.x_seed_roles__mutmut_10": null,
+        "app.seeds.roles.x_seed_roles__mutmut_11": null,
+        "app.seeds.roles.x_seed_roles__mutmut_12": null,
+        "app.seeds.roles.x_seed_roles__mutmut_13": null,
+        "app.seeds.roles.x_seed_roles__mutmut_14": null
+    },
+    "hash_by_function_name": {
+        "x_seed_roles": "b8c43cb29e7a"
+    },
+    "type_check_error_by_key": {},
+    "durations_by_key": {},
+    "estimated_durations_by_key": {}
+}

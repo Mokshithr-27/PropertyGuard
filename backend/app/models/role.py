@@ -1,3 +1,10 @@
+"""
+PropertyGuard Role & RBAC Assignment Models
+-------------------------------------------
+Defines Role and UserRole association models implementing role-based access control
+(SUPER_ADMIN, ADMIN, BUILDER, BUYER).
+"""
+
 import uuid
 from datetime import datetime
 

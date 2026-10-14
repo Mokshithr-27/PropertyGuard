@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Service Comprehensive Test Suite
+---------------------------------------------------------
+Exhaustively tests rule evaluation orchestration, jurisdiction filtering, rule version
+resolution, dependency graphs, findings persistence, and discrepancy flagging.
+"""
+
 import uuid
 from types import SimpleNamespace
 
@@ -1337,6 +1344,10 @@ def test_run_evaluation_success(monkeypatch):
         "app.services.compliance_service.get_active_rule_version",
         fake_get_active_rule_version,
     )
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, rule_version_id: [],
+    )
 
     def fake_evaluate_rule(
         db,
@@ -1477,12 +1488,16 @@ def test_build_evidence_context_promotes_semantic_evidence(monkeypatch):
             field_value="P123456789",
             page_number=1,
             created_at=None,
+            confidence=0.95,
+            evidence_text="RERA registration number: P123456789",
         ),
         SimpleNamespace(
             field_name="project_name",
             field_value="Green Valley Apartments",
             page_number=1,
             created_at=None,
+            confidence=0.95,
+            evidence_text="Project Name: Green Valley Apartments",
         ),
     ]
 
@@ -1635,12 +1650,16 @@ def test_build_evidence_context_ignores_conflicting_semantic_values(monkeypatch)
             field_value="P123456789",
             page_number=1,
             created_at=None,
+            confidence=0.95,
+            evidence_text="RERA registration number: P123456789",
         ),
         SimpleNamespace(
             field_name="rera_number",
             field_value="P987654321",
             page_number=2,
             created_at=None,
+            confidence=0.95,
+            evidence_text="RERA registration number: P987654321",
         ),
     ]
 
@@ -1745,3 +1764,47 @@ def test_build_evidence_context_uses_latest_version_for_analysis(monkeypatch):
 
 
 
+
+
+def test_order_versions_by_dependencies_evaluates_dependency_first(monkeypatch):
+    service = ComplianceService()
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    first = SimpleNamespace(id=first_id)
+    second = SimpleNamespace(id=second_id)
+    dependency = SimpleNamespace(depends_on_rule_version_id=first_id)
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, version_id: [dependency] if version_id == second_id else [],
+    )
+
+    ordered = service._order_versions_by_dependencies(
+        make_fake_db(),
+        {first_id: (SimpleNamespace(), first), second_id: (SimpleNamespace(), second)},
+    )
+
+    assert [item.id for item in ordered] == [first_id, second_id]
+
+
+def test_order_versions_by_dependencies_rejects_cycles(monkeypatch):
+    service = ComplianceService()
+    first_id = uuid.uuid4()
+    second_id = uuid.uuid4()
+    first = SimpleNamespace(id=first_id)
+    second = SimpleNamespace(id=second_id)
+    dependencies = {
+        first_id: [SimpleNamespace(depends_on_rule_version_id=second_id)],
+        second_id: [SimpleNamespace(depends_on_rule_version_id=first_id)],
+    }
+
+    monkeypatch.setattr(
+        "app.services.compliance_service.get_rule_dependencies",
+        lambda db, version_id: dependencies[version_id],
+    )
+
+    with pytest.raises(ValueError, match="Cycle detected"):
+        service._order_versions_by_dependencies(
+            make_fake_db(),
+            {first_id: (SimpleNamespace(), first), second_id: (SimpleNamespace(), second)},
+        )

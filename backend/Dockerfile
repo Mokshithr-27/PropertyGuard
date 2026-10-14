@@ -1,3 +1,9 @@
+# ==============================================================================
+# PropertyGuard Backend - Dockerfile
+# Containerizes the FastAPI backend service using Python 3.14-slim base image,
+# installs project dependencies, and runs the Uvicorn ASGI server.
+# ==============================================================================
+
 FROM python:3.14-slim
 
 WORKDIR /app

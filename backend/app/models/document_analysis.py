@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Analysis & AI Evidence Models
+----------------------------------------------------
+Defines DocumentAnalysis and DocumentEvidence entities storing AI/OCR-extracted facts,
+confidence scores, page numbers, extracted values, and supporting citation excerpts.
+"""
+
 import uuid
 from datetime import datetime
 

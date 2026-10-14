@@ -1,3 +1,10 @@
+"""
+PropertyGuard JWT Token Handler
+-------------------------------
+Provides utilities for creating and decoding cryptographic JSON Web Tokens (JWT)
+for user authentication sessions, setting standard expiry and claims.
+"""
+
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 

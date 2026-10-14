@@ -1,3 +1,10 @@
+"""
+PropertyGuard Admin Request Schemas
+-----------------------------------
+Defines Pydantic request models for administrator actions, such as verifying/rejecting
+builder profiles and approving/rejecting real estate project versions.
+"""
+
 from pydantic import BaseModel, Field
 
 

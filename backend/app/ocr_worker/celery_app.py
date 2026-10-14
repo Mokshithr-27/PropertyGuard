@@ -1,3 +1,10 @@
+"""
+PropertyGuard OCR Dedicated Celery Application
+----------------------------------------------
+Configures an isolated Celery application instance bound to the 'ocr' queue,
+routing heavyweight PaddleOCR processing away from standard API workers.
+"""
+
 from celery import Celery
 from dotenv import load_dotenv
 import os

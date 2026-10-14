@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Tasks Worker Test Suite
+----------------------------------------------
+Validates Celery document processing task pipeline, testing mock extraction paths,
+AI analysis persistence, OCR worker delegation, and error rollback handling.
+"""
+
 from types import SimpleNamespace
 
 from uuid import UUID

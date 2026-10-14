@@ -1,3 +1,10 @@
+"""
+PropertyGuard API Request Dependencies
+--------------------------------------
+Provides FastAPI dependency injection providers: database session lifecycle management (get_db),
+JWT bearer token authentication (get_current_user), and role-based access gates (require_role).
+"""
+
 from collections.abc import Generator
 from uuid import UUID
 

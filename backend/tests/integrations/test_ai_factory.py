@@ -1,3 +1,10 @@
+"""
+PropertyGuard AI Provider Factory Unit Test Suite
+-------------------------------------------------
+Validates that the AI factory correctly instantiates MockDocumentAIProvider or
+GeminiDocumentAIProvider based on configuration, and rejects unsupported provider names.
+"""
+
 import pytest
 
 from app.integrations.ai.factory import get_ai_provider

@@ -1,4 +1,5 @@
-"""create compliance rules tables
+"""PropertyGuard Alembic Migration: Create Compliance Rules Tables
+Creates compliance_rules and rule_versions tables for regulatory governance.
 
 Revision ID: b77bd630b8da
 Revises: bef3375deee5

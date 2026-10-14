@@ -1,3 +1,10 @@
+"""
+PropertyGuard PyMuPDF Fast Document Text Extraction Service
+-----------------------------------------------------------
+Extracts digital text and page structures from PDF documents using PyMuPDF (fitz),
+producing ExtractedDocument and ExtractedPage models for downstream AI analysis.
+"""
+
 from dataclasses import dataclass
 
 import pymupdf

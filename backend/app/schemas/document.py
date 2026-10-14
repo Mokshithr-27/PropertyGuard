@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Schemas
+------------------------------
+Defines Pydantic models for document registration requests, version summaries,
+detailed responses with associated versions, and storage keys.
+"""
+
 from datetime import datetime
 from uuid import UUID
 
@@ -77,4 +84,4 @@ class DocumentValidationResponse(BaseModel):
     sha256: str
     detected_format: str
     error: str | None = None
-    details: dict[str, str | int | bool] = {}
+    details: dict[str, str | int | bool] = {}

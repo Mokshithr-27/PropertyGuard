@@ -1,3 +1,10 @@
+"""
+PropertyGuard Database Session & ORM Base Setup
+------------------------------------------------
+Initializes the SQLAlchemy engine with connection pool pinging, configures the
+SessionLocal factory for database transactions, and defines the DeclarativeBase.
+"""
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 

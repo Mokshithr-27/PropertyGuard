@@ -1,3 +1,10 @@
+"""
+PropertyGuard Administrator Business Service
+--------------------------------------------
+Implements platform administration logic: reviewing and verifying builder profiles,
+and approving or rejecting real estate project versions with audit histories.
+"""
+
 from datetime import datetime
 from uuid import UUID
 
@@ -102,7 +109,8 @@ def review_project_version(
     if status == "APPROVED":
         project = db.scalar(
             select(Project).where(
-                Project.id == version.project_id
+                Project.id == version.project_id,
+                Project.deleted_at.is_(None),
             )
         )
 

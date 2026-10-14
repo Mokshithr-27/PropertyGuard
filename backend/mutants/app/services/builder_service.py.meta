@@ -1,0 +1,36 @@
+{
+    "exit_code_by_key": {
+        "app.services.builder_service.x_get_builder_profile__mutmut_1": null,
+        "app.services.builder_service.x_get_builder_profile__mutmut_2": null,
+        "app.services.builder_service.x_get_builder_profile__mutmut_3": null,
+        "app.services.builder_service.x_get_builder_profile__mutmut_4": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_1": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_2": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_3": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_4": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_5": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_6": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_7": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_8": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_9": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_10": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_11": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_12": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_13": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_14": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_15": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_16": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_17": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_18": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_19": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_20": null,
+        "app.services.builder_service.x_create_builder_profile__mutmut_21": null
+    },
+    "hash_by_function_name": {
+        "x_get_builder_profile": "9a0b923e45e6",
+        "x_create_builder_profile": "683db2d773b6"
+    },
+    "type_check_error_by_key": {},
+    "durations_by_key": {},
+    "estimated_durations_by_key": {}
+}

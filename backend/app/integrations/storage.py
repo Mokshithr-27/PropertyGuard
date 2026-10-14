@@ -1,3 +1,10 @@
+"""
+PropertyGuard MinIO Object Storage Integration
+----------------------------------------------
+Provides an interface to S3-compatible MinIO object storage for document binaries,
+handling bucket creation, byte uploads, downloads, existence checks, and deletion.
+"""
+
 from io import BytesIO
 
 from minio import Minio

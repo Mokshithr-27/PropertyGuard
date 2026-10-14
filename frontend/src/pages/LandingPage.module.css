@@ -1,8 +1,13 @@
+/* ==============================================================================
+   PropertyGuard Landing Page CSS Module
+   Styles for hero banner, feature grids, compliance tier showcases, and interactive cards.
+   ============================================================================== */
+
 .page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--color-bg);
+  background-color: #f7f9fc;
 }
 
 .heroSection {
@@ -44,10 +49,10 @@
   gap: 0.5rem;
   padding: 0.4rem 1rem;
   border-radius: var(--radius-full);
-  background: rgba(30, 41, 59, 0.8);
+  background: #eef5ff;
   border: 1px solid rgba(59, 130, 246, 0.3);
   font-size: 0.8125rem;
-  color: #93C5FD;
+  color: #2563eb;
   margin-bottom: 1.5rem;
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
 }
@@ -58,12 +63,12 @@
   line-height: 1.15;
   letter-spacing: -0.03em;
   margin-bottom: 1.5rem;
-  color: #FFFFFF;
+  color: #14213d;
 }
 
 .heroSubtitle {
   font-size: clamp(1rem, 2vw, 1.25rem);
-  color: #94A3B8;
+  color: #5f6f86;
   max-width: 720px;
   line-height: 1.6;
   margin-bottom: 2.5rem;
@@ -94,7 +99,7 @@
 }
 
 .metricCard {
-  background: rgba(15, 23, 42, 0.65);
+  background: #ffffff;
   backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -114,7 +119,7 @@
 .metricValue {
   font-size: 1.75rem;
   font-weight: 800;
-  color: #FFFFFF;
+  color: #14213d;
   letter-spacing: -0.02em;
   line-height: 1.1;
   margin-bottom: 0.25rem;
@@ -122,7 +127,7 @@
 
 .metricLabel {
   font-size: 0.75rem;
-  color: var(--color-text-dim);
+  color: #6b7485;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;

@@ -1,3 +1,11 @@
+"""
+PropertyGuard Application Configuration
+----------------------------------------
+Loads environment variables from .env to configure PostgreSQL database connection,
+Redis broker URL, MinIO S3-compatible storage settings, JWT authentication secrets,
+and AI provider parameters (Gemini API, Ollama, Mock).
+"""
+
 import os
 
 from dotenv import load_dotenv

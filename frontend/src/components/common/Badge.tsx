@@ -1,3 +1,8 @@
+/**
+ * PropertyGuard Badge UI Component
+ * Renders status indicators and tags with configurable variants (success, warning, danger, info, etc.) and dot indicators.
+ */
+
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
 import styles from './Badge.module.css';

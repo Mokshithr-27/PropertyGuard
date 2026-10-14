@@ -1,3 +1,11 @@
+"""
+PropertyGuard AI Provider Base Abstractions
+--------------------------------------------
+Defines the core protocol (DocumentAIProvider) and standardized dataclasses
+(EvidenceItem, AIAnalysisResult) representing extracted document facts, field values,
+confidence scores, and supporting citation texts.
+"""
+
 from dataclasses import dataclass, field
 from typing import Protocol
 

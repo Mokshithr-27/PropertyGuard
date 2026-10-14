@@ -1,3 +1,9 @@
+# ==============================================================================
+# PropertyGuard - Docker Compose Infrastructure Configuration
+# Starts PostgreSQL (database), Redis (broker/cache), and MinIO (object storage)
+# for local development and integration testing environments.
+# ==============================================================================
+
 services:
 
   postgres:

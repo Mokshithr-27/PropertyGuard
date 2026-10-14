@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Rule Versions Correction Utility
+---------------------------------------------------------
+Corrects legacy document type keys in seeded compliance rule versions
+(e.g., mapping PG_APPROVED_BUILDING_PLAN to SANCTIONED_PLAN and FIRE_SAFETY_DOCUMENT to FIRE_NOC).
+"""
+
 from datetime import datetime, timezone
 
 from app.core.database import SessionLocal

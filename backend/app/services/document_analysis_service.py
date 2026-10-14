@@ -1,3 +1,10 @@
+"""
+PropertyGuard Document Analysis Persistence Service
+---------------------------------------------------
+Persists structured document analyses and AI-generated evidence records
+(page numbers, citations, confidence scores, extracted properties) into PostgreSQL.
+"""
+
 from datetime import datetime, timezone
 from uuid import UUID
 

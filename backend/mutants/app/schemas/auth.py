@@ -1,0 +1,43 @@
+"""
+PropertyGuard Authentication Schemas
+------------------------------------
+Defines Pydantic models for user registration, login credentials, JWT token responses,
+and current user profile representations with role lists.
+"""
+
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+from mutmut.mutation.trampoline import wrap_in_trampoline as _mutmut_mutated, MutantDict
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(min_length=2, max_length=255)
+    phone: str | None = Field(default=None, max_length=30)
+    role: str | None = Field(default="BUILDER", max_length=30)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: EmailStr
+    full_name: str
+    phone: str | None
+    is_active: bool
+    is_email_verified: bool
+    roles: list[str] = []
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

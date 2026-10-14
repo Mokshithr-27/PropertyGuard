@@ -1,3 +1,12 @@
+"""
+PropertyGuard Asynchronous Document Processing Pipeline Tasks
+-------------------------------------------------------------
+Orchestrates background document processing: downloads files from MinIO, selects
+either fast text extraction (PyMuPDF) or OCR worker routing (PaddleOCR), passes
+extracted content to the configured AI Provider for entity/evidence extraction,
+and persists analysis records and evidence items in PostgreSQL.
+"""
+
 from uuid import UUID
 
 from app.core.database import SessionLocal
@@ -71,10 +80,9 @@ def process_document_task(
             version.storage_key
         )
 
-        extracted = extract_pdf_text(
-            file_bytes
-        )
-
+        # Extract once. Do not print raw document contents to logs: property
+        # documents may contain confidential personal and financial information.
+        extracted = extract_pdf_text(file_bytes)
 
         if not extracted.has_text:
 

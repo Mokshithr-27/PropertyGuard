@@ -1,3 +1,10 @@
+"""
+PropertyGuard Compliance Rules Seeding Script
+---------------------------------------------
+Seeds standard real estate compliance rules (RERA registration, sanctioned building plan,
+fire safety NOC, title deed verification) and their versioned logic and applicability.
+"""
+
 from datetime import datetime, timezone
 
 from app.core.database import SessionLocal

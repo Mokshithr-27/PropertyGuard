@@ -1,3 +1,8 @@
+/**
+ * PropertyGuard Authentication Type Definitions
+ * TypeScript interfaces representing user profiles, roles, and JWT token responses.
+ */
+
 export interface User {
   id: string;
   email: string;

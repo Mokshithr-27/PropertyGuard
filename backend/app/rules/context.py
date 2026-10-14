@@ -1,3 +1,10 @@
+"""
+PropertyGuard Rule Evaluation Context
+-------------------------------------
+Defines immutable evaluation context models (EvidenceContext, DocumentEvidence)
+aggregating project metadata, uploaded documents, extracted fields, and evaluation timestamps.
+"""
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any

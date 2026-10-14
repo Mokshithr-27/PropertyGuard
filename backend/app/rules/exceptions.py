@@ -1,3 +1,10 @@
+"""
+PropertyGuard Rule Engine Exceptions
+------------------------------------
+Defines custom exception classes for rule parsing, execution, and evaluation errors
+(RuleEngineError, InvalidRuleError, UnsupportedOperatorError, InvalidEvidenceError).
+"""
+
 class RuleEngineError(Exception):
     """Base exception for rule-engine errors."""
 

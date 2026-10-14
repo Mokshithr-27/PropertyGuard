@@ -1,3 +1,10 @@
+"""
+PropertyGuard Builder Profile Schemas
+-------------------------------------
+Defines Pydantic models for creating builder company profiles and serializing
+profile records including verification status and corporate details.
+"""
+
 from datetime import datetime
 from uuid import UUID
 

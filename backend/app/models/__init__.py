@@ -1,3 +1,10 @@
+"""
+PropertyGuard SQLAlchemy ORM Models Package
+--------------------------------------------
+Exports all database entities including authentication, builder profiles, project
+hierarchies, documents, processing jobs, compliance rules, evaluations, and AI evidence.
+"""
+
 from app.models.user import User
 from app.models.role import Role, UserRole
 from app.models.builder import BuilderProfile, BuilderVerification
@@ -21,6 +28,7 @@ from app.models.document_analysis import (
     DocumentAnalysis,
     DocumentEvidence,
 )
+from app.models.rera_verification import ReraVerification
 
 
 __all__ = [
@@ -45,4 +53,5 @@ __all__ = [
     "DocumentProcessingJob",
     "DocumentAnalysis",
     "DocumentEvidence",
+    "ReraVerification",
 ]

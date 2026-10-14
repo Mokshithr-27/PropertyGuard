@@ -1,3 +1,10 @@
+"""
+PropertyGuard Database Health Diagnostic Check
+------------------------------------------------
+Provides a quick connectivity test function executing 'SELECT 1' against the
+configured PostgreSQL database engine.
+"""
+
 from sqlalchemy import text
 
 from app.core.database import engine

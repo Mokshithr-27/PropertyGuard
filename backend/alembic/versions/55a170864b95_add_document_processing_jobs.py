@@ -1,4 +1,5 @@
-"""add document processing jobs
+"""PropertyGuard Alembic Migration: Add Document Processing Jobs
+Creates document_processing_jobs table to track async Celery background tasks.
 
 Revision ID: 55a170864b95
 Revises: 5d6d672ab7f7

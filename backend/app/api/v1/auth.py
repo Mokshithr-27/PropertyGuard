@@ -1,3 +1,10 @@
+"""
+PropertyGuard Authentication API Endpoints
+------------------------------------------
+Exposes user registration (/register), user login (/login) returning JWT tokens,
+and the authenticated identity profile endpoint (/me).
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

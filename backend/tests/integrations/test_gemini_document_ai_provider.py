@@ -1,3 +1,10 @@
+"""
+PropertyGuard Gemini Document AI Provider Test Suite
+-----------------------------------------------------
+Unit tests Gemini provider response parsing, structured schema conversion,
+and error handling using mock GenAI client responses.
+"""
+
 from types import SimpleNamespace
 from uuid import uuid4
 
